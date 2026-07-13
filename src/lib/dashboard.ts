@@ -10,6 +10,8 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     lessonProgress,
     sqlLessons,
     pythonLessons,
+    sqlTaskProgress,
+    candyArcadeProgress,
     topicMastery,
     revisionQueue,
     errorLog,
@@ -19,6 +21,8 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     db.lessonProgress.toArray(),
     db.lessons.where("courseSlug").equals("sql").toArray(),
     db.lessons.where("courseSlug").equals("python").toArray(),
+    db.sqlTaskProgress.toArray(),
+    db.candyArcadeProgress.toArray(),
     db.topicMastery.toArray(),
     db.revisionQueue.toArray(),
     db.errorLog.toArray(),
@@ -38,8 +42,9 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     ? Math.round((completedPythonLessons / pythonLessons.length) * 100)
     : 0;
 
-  const totalExercisesSolved =
-    (sqlProgress?.exercisesSolved ?? 0) + (pythonProgress?.exercisesSolved ?? 0);
+  const completedSqlTasks = sqlTaskProgress.filter((item) => item.completed).length;
+  const completedArcadeLevels = candyArcadeProgress.filter((item) => item.completed).length;
+  const totalExercisesSolved = completedSqlTasks + completedArcadeLevels;
 
   const combinedAccuracy = Math.round(
     ((sqlProgress?.accuracyPercent ?? 0) + (pythonProgress?.accuracyPercent ?? 0)) / 2,
@@ -51,6 +56,8 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     sqlCompletion,
     pythonCompletion,
     totalExercisesSolved,
+    completedSqlTasks,
+    completedArcadeLevels,
     combinedAccuracy,
     currentStreak: Math.max(sqlProgress?.streakDays ?? 0, pythonProgress?.streakDays ?? 0),
     weakTopics: topicMastery

@@ -47,7 +47,7 @@ export function DashboardView() {
       title: "SQL",
       percent: summary.sqlCompletion,
       href: "/sql/week/sql-week-01",
-      detail: `${summary.sqlProgress?.exercisesSolved ?? 0} solved · ${academyBuildStatus.sqlVerifiedWeeksLive} verified weeks live`,
+      detail: `${summary.completedSqlTasks} SQL tasks saved locally · ${academyBuildStatus.sqlVerifiedWeeksLive} verified weeks live`,
     },
     {
       title: "Python",
@@ -192,6 +192,18 @@ export function DashboardView() {
                 </Link>
               </div>
             ))}
+            <div className="rounded-3xl border border-border/70 p-4 text-sm leading-6 text-muted-foreground">
+              <p className="font-medium text-foreground">Local save status</p>
+              <p className="mt-2">
+                Progress is stored in this browser for this exact site origin.
+              </p>
+              <p className="mt-2">
+                If you switch between `localhost`, `mastery-platform.onrender.com`, preview URLs, another browser, or another device, the saved progress will look different.
+              </p>
+              <p className="mt-2">
+                Arcade saved so far: {summary.completedArcadeLevels} completed levels.
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Button variant="outline" onClick={() => logStudyMinutes("sql", 30)}>
                 Log 30 min SQL

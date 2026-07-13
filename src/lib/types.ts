@@ -279,6 +279,8 @@ export interface DashboardSummary {
   sqlCompletion: number;
   pythonCompletion: number;
   totalExercisesSolved: number;
+  completedSqlTasks: number;
+  completedArcadeLevels: number;
   combinedAccuracy: number;
   currentStreak: number;
   weakTopics: TopicMasteryRecord[];
