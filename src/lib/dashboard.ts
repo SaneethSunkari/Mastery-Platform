@@ -7,9 +7,11 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const [
     sqlProgress,
     pythonProgress,
+    pysparkProgress,
     lessonProgress,
     sqlLessons,
     pythonLessons,
+    pysparkLessons,
     sqlTaskProgress,
     candyArcadeProgress,
     topicMastery,
@@ -18,9 +20,11 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   ] = await Promise.all([
     db.courseProgress.get("course-progress-sql"),
     db.courseProgress.get("course-progress-python"),
+    db.courseProgress.get("course-progress-pyspark"),
     db.lessonProgress.toArray(),
     db.lessons.where("courseSlug").equals("sql").toArray(),
     db.lessons.where("courseSlug").equals("python").toArray(),
+    db.lessons.where("courseSlug").equals("pyspark").toArray(),
     db.sqlTaskProgress.toArray(),
     db.candyArcadeProgress.toArray(),
     db.topicMastery.toArray(),
@@ -34,12 +38,18 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const completedPythonLessons = lessonProgress.filter(
     (item) => item.courseSlug === "python" && item.status === "completed",
   ).length;
+  const completedPysparkLessons = lessonProgress.filter(
+    (item) => item.courseSlug === "pyspark" && item.status === "completed",
+  ).length;
 
   const sqlCompletion = sqlLessons.length
     ? Math.round((completedSqlLessons / sqlLessons.length) * 100)
     : 0;
   const pythonCompletion = pythonLessons.length
     ? Math.round((completedPythonLessons / pythonLessons.length) * 100)
+    : 0;
+  const pysparkCompletion = pysparkLessons.length
+    ? Math.round((completedPysparkLessons / pysparkLessons.length) * 100)
     : 0;
 
   const completedSqlTasks = sqlTaskProgress.filter((item) => item.completed).length;
@@ -53,13 +63,19 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   return {
     sqlProgress: sqlProgress ?? null,
     pythonProgress: pythonProgress ?? null,
+    pysparkProgress: pysparkProgress ?? null,
     sqlCompletion,
     pythonCompletion,
+    pysparkCompletion,
     totalExercisesSolved,
     completedSqlTasks,
     completedArcadeLevels,
     combinedAccuracy,
-    currentStreak: Math.max(sqlProgress?.streakDays ?? 0, pythonProgress?.streakDays ?? 0),
+    currentStreak: Math.max(
+      sqlProgress?.streakDays ?? 0,
+      pythonProgress?.streakDays ?? 0,
+      pysparkProgress?.streakDays ?? 0,
+    ),
     weakTopics: topicMastery
       .filter((item) => item.score < 60)
       .sort((a, b) => a.score - b.score)

@@ -23,7 +23,7 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
       ? "Continue track"
       : courseSlug === "python"
         ? "Start Python Week 1"
-        : "Open PySpark notes";
+        : "Start PySpark Week 1";
   const levels = useMemo(
     () => allGameLevels.filter((level) => level.courseSlug === courseSlug),
     [courseSlug],

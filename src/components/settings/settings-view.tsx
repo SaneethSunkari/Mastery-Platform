@@ -91,6 +91,10 @@ export function SettingsView() {
               <RotateCcw className="mr-2 size-4" />
               Reset Python progress
             </Button>
+            <Button variant="outline" onClick={() => resetCourseProgress("pyspark")}>
+              <RotateCcw className="mr-2 size-4" />
+              Reset PySpark progress
+            </Button>
             <Button variant="outline" onClick={() => resetCandyArcadeProgress()}>
               <RotateCcw className="mr-2 size-4" />
               Reset Candy Arcade

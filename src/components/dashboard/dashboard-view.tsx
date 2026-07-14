@@ -57,9 +57,9 @@ export function DashboardView() {
     },
     {
       title: "PySpark",
-      percent: 0,
-      href: "/pyspark",
-      detail: "Track map and materials live · verified missions not live yet",
+      percent: summary.pysparkCompletion,
+      href: "/pyspark/week/pyspark-week-01",
+      detail: `${summary.pysparkProgress?.exercisesSolved ?? 0} solved · lesson lane and week structure live`,
     },
   ];
 

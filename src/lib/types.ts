@@ -276,8 +276,10 @@ export interface AppBackupPayload {
 export interface DashboardSummary {
   sqlProgress: CourseProgressRecord | null;
   pythonProgress: CourseProgressRecord | null;
+  pysparkProgress: CourseProgressRecord | null;
   sqlCompletion: number;
   pythonCompletion: number;
+  pysparkCompletion: number;
   totalExercisesSolved: number;
   completedSqlTasks: number;
   completedArcadeLevels: number;

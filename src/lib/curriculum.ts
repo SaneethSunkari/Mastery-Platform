@@ -1742,9 +1742,527 @@ const toWeeks = (courseSlug: CourseSlug, weeksInput: WeekInput[]): WeekSeed[] =>
     }),
   );
 
+const pysparkPlanInputs = [
+  {
+    title: "Spark Foundations and DataFrame Thinking",
+    theme: "Think in distributed transformations instead of single-machine scripts.",
+    objectives: [
+      "Understand SparkSession, DataFrames, and lazy evaluation.",
+      "Read schemas and reason about partitions at a high level.",
+      "Write simple projections and filters with clean DataFrame code.",
+    ],
+    topics: ["SparkSession", "DataFrames", "select", "filter", "lazy execution"],
+    practice: [
+      "Select and filter event records from a mock clickstream DataFrame.",
+      "Describe how lazy execution changes debugging strategy.",
+      "Predict schema and row counts before running a transform.",
+    ],
+    debugging: "A DataFrame looks empty after a filter. Trace whether the predicate or the input schema caused the issue.",
+    businessCase: "A growth team needs a clean filtered extract from a raw event stream without moving data into pandas.",
+    interviewPrompts: [
+      "Why does Spark delay execution until an action runs?",
+      "When would you choose a DataFrame transformation instead of a Python loop?",
+    ],
+    assessment: "Build a small DataFrame pipeline with projection, filtering, and a schema check.",
+    project: "Prepare a starter Spark notebook that reads, filters, and explains a raw events dataset.",
+    revision: [
+      "Review lazy execution and action vs transformation.",
+      "Rebuild a small select-filter pipeline from memory.",
+    ],
+    masteryCheckpoint: "You can explain what Spark is doing before and after an action is triggered.",
+  },
+  {
+    title: "Column Expressions and Null Handling",
+    theme: "Clean raw fields without hiding data quality issues.",
+    objectives: [
+      "Use `withColumn`, `when`, `coalesce`, and casts safely.",
+      "Handle nulls without dropping useful records accidentally.",
+      "Build readable derived fields in PySpark.",
+    ],
+    topics: ["withColumn", "when", "coalesce", "cast", "null handling"],
+    practice: [
+      "Standardize status labels and amount fields in a raw orders DataFrame.",
+      "Fill null descriptive fields with safe defaults.",
+      "Compare cast behavior before and after data cleanup.",
+    ],
+    debugging: "A cast to integer fails for a subset of rows. Identify whether malformed strings or null behavior is the root cause.",
+    businessCase: "A warehouse load needs clean order status, numeric amounts, and safe fallback text before writing a curated table.",
+    interviewPrompts: [
+      "When is `coalesce` safe, and when can it hide a real quality issue?",
+      "How do you keep many derived columns readable in PySpark?",
+    ],
+    assessment: "Create a cleaned projection with derived fields, casts, and explicit null-safe logic.",
+    project: "Build a reusable cleanup stage for a raw orders DataFrame.",
+    revision: [
+      "Rebuild your null-handling expressions from memory.",
+      "Review which fields should be cast and which should be left raw.",
+    ],
+    masteryCheckpoint: "You can clean raw Spark columns without turning the pipeline into unreadable code.",
+  },
+  {
+    title: "Aggregations and Metric Integrity",
+    theme: "Never lose the grain when you summarize data at scale.",
+    objectives: [
+      "Group and aggregate at the correct business grain.",
+      "Use counts, sums, and distinct logic carefully.",
+      "Protect metrics from duplicate inflation.",
+    ],
+    topics: ["groupBy", "agg", "countDistinct", "sum", "metric grain"],
+    practice: [
+      "Calculate daily revenue and paid order counts by country.",
+      "Compare `count` and `countDistinct` on duplicated records.",
+      "Create multiple KPIs in one aggregation pass.",
+    ],
+    debugging: "Revenue doubled after a join. Decide whether the issue is pre-aggregation grain or duplicate keys.",
+    businessCase: "Finance needs a trustworthy daily metrics table from high-volume transaction data.",
+    interviewPrompts: [
+      "What does one row represent before and after a Spark aggregation?",
+      "Why is `countDistinct` expensive, and when is it still necessary?",
+    ],
+    assessment: "Build a grouped metrics table with correct grain and clearly named KPI columns.",
+    project: "Create a reusable aggregation layer for an orders fact table.",
+    revision: [
+      "Revisit grain statements before writing any aggregation.",
+      "Redo one metrics task while watching for duplicate inflation.",
+    ],
+    masteryCheckpoint: "You can explain why a Spark metric is correct, not just show the code that produced it.",
+  },
+  {
+    title: "Joins and Distributed Relationship Logic",
+    theme: "Joining at scale means thinking about keys, skew, and row explosion.",
+    objectives: [
+      "Use inner, left, and anti joins correctly.",
+      "Diagnose duplicate explosions and missing-row regressions.",
+      "Keep join logic business-readable.",
+    ],
+    topics: ["join", "join keys", "left join", "anti join", "row explosion"],
+    practice: [
+      "Join customers and orders into a readable report DataFrame.",
+      "Use anti joins to find missing reference data.",
+      "Check row counts before and after a join.",
+    ],
+    debugging: "A left join followed by a filter silently drops unmatched rows. Find where the logic went wrong.",
+    businessCase: "A support dashboard needs customer context attached to recent orders without duplicating transactions.",
+    interviewPrompts: [
+      "How do you debug an unexpected row-count increase after a join?",
+      "When is an anti join better than a `NOT IN` style pattern?",
+    ],
+    assessment: "Build a join pipeline with one fact table, one dimension table, and explicit validation checks.",
+    project: "Create a customer-order enrichment job with pre- and post-join quality checks.",
+    revision: [
+      "Review which key drives each join.",
+      "Redo a duplicate-explosion debugging task.",
+    ],
+    masteryCheckpoint: "You treat joins as data-contract work, not just syntax work.",
+  },
+  {
+    title: "Window Functions in Spark",
+    theme: "Keep row-level detail while computing group-level context.",
+    objectives: [
+      "Use partitions and ordering inside Spark window specs.",
+      "Rank, deduplicate, and compare rows within groups.",
+      "Pick the correct window function for the business question.",
+    ],
+    topics: ["Window", "row_number", "rank", "lag", "partitionBy"],
+    practice: [
+      "Rank orders within each customer by amount.",
+      "Use `row_number` to keep the latest record per key.",
+      "Compare current and previous event timestamps with `lag`.",
+    ],
+    debugging: "A deduplication window keeps the wrong row. Check ordering and partition columns.",
+    businessCase: "Analytics engineering needs latest-state records and within-customer ranking without losing event-level detail.",
+    interviewPrompts: [
+      "Why does window ordering matter as much as partitioning?",
+      "When would you use `row_number` instead of `rank`?",
+    ],
+    assessment: "Build one ranking task, one latest-row task, and one lag-based comparison task.",
+    project: "Create a latest-customer-state Spark view with clear deduplication logic.",
+    revision: [
+      "Review partition columns and sort direction for each window.",
+      "Redo one latest-row exercise without notes.",
+    ],
+    masteryCheckpoint: "You can design a window spec by reasoning from grain and business intent.",
+  },
+  {
+    title: "Dates, Time, and Incremental Logic",
+    theme: "Production jobs live or die by correct time boundaries.",
+    objectives: [
+      "Filter by date windows safely.",
+      "Use watermark logic for incremental data movement.",
+      "Distinguish event time, load time, and business date.",
+    ],
+    topics: ["date filters", "timestamps", "watermarks", "incremental loads", "event time"],
+    practice: [
+      "Filter recent events using a clear date boundary.",
+      "Select only new or changed rows after a load watermark.",
+      "Compare business date and ingestion time for late-arriving data.",
+    ],
+    debugging: "A daily job reloads too many rows. Trace whether the watermark or timestamp parsing is wrong.",
+    businessCase: "An overnight Spark pipeline must move only new records into a warehouse-ready zone.",
+    interviewPrompts: [
+      "What is the difference between event time and processing time in batch pipelines?",
+      "How do you make incremental filters safe for reruns?",
+    ],
+    assessment: "Write an incremental extraction step with explicit watermark and boundary logic.",
+    project: "Build a daily incremental Spark load for transaction data.",
+    revision: [
+      "Review boundary conditions around start and end dates.",
+      "Rebuild one watermark filter from memory.",
+    ],
+    masteryCheckpoint: "You stop treating time filters like simple strings and start treating them like pipeline contracts.",
+  },
+  {
+    title: "Performance Basics and Wide Transform Awareness",
+    theme: "Not every correct Spark job is a scalable Spark job.",
+    objectives: [
+      "Recognize narrow vs wide transformations.",
+      "Understand why shuffles are expensive.",
+      "Use basic performance judgment before tuning deeply.",
+    ],
+    topics: ["shuffles", "wide transforms", "narrow transforms", "execution plan", "cost awareness"],
+    practice: [
+      "Compare a narrow projection flow with a wide aggregation flow.",
+      "Identify where a shuffle is introduced in a plan.",
+      "Rewrite a transform sequence to reduce unnecessary data movement.",
+    ],
+    debugging: "A job is correct but unexpectedly slow. Identify whether a shuffle-heavy step is the likely culprit.",
+    businessCase: "A pipeline must finish inside a narrow batch window without upgrading compute wastefully.",
+    interviewPrompts: [
+      "What makes a transformation wide?",
+      "How can you reason about cost before running full-scale data?",
+    ],
+    assessment: "Explain one slow plan and propose safer transformation ordering.",
+    project: "Refactor a shuffle-heavy job into a cleaner, more efficient sequence.",
+    revision: [
+      "Review where the pipeline triggers data movement.",
+      "Re-explain narrow vs wide transforms in your own words.",
+    ],
+    masteryCheckpoint: "You start noticing data movement costs before they hurt production.",
+  },
+  {
+    title: "Write Paths, Partitioning, and File Layout",
+    theme: "Good output structure saves downstream teams from pain.",
+    objectives: [
+      "Choose sensible partition columns for batch output.",
+      "Avoid thoughtless over-partitioning.",
+      "Prepare write steps that downstream readers can use efficiently.",
+    ],
+    topics: ["write", "partitionBy", "file layout", "partition strategy", "batch output"],
+    practice: [
+      "Add a partition-ready date field to a curated DataFrame.",
+      "Reason about why one partition column is better than another.",
+      "Describe tradeoffs of too many small output partitions.",
+    ],
+    debugging: "A downstream reader is slow because the output layout is messy. Identify the likely write-path design issue.",
+    businessCase: "A curated daily table must be written in a layout that BI and batch readers can consume efficiently.",
+    interviewPrompts: [
+      "How do you choose a partition column for Spark output?",
+      "Why can too many small files become a production problem?",
+    ],
+    assessment: "Design a write path with partitioning rationale and downstream-read considerations.",
+    project: "Prepare a partitioned output plan for a curated orders dataset.",
+    revision: [
+      "Review partition choices against business query patterns.",
+      "Revisit file layout tradeoffs.",
+    ],
+    masteryCheckpoint: "You treat write layout as a product decision, not an afterthought.",
+  },
+  {
+    title: "Data Quality Validation in Spark",
+    theme: "Batch pipelines need checks, not trust.",
+    objectives: [
+      "Return invalid rows explicitly for inspection.",
+      "Compare source and target counts at matching grain.",
+      "Build quality checks into the pipeline flow.",
+    ],
+    topics: ["validation", "bad-row capture", "reconciliation", "count checks", "quality gates"],
+    practice: [
+      "Return only invalid order rows for review.",
+      "Compare staging and curated row counts by date.",
+      "Write a DataFrame check that flags missing keys and non-positive amounts.",
+    ],
+    debugging: "A curated table looks smaller than staging. Build a validation step to pinpoint the loss.",
+    businessCase: "Data engineering needs confidence checks before each write is considered successful.",
+    interviewPrompts: [
+      "What validation checks belong in almost every Spark batch pipeline?",
+      "How do you make bad rows inspectable instead of invisible?",
+    ],
+    assessment: "Create a validation bundle with row-level and aggregate-level checks.",
+    project: "Add quality gates to a Spark job and summarize what each gate protects.",
+    revision: [
+      "Review the difference between row-level and aggregate-level validation.",
+      "Redo a reconciliation check from memory.",
+    ],
+    masteryCheckpoint: "You build trust into the pipeline instead of checking results only after something breaks.",
+  },
+  {
+    title: "Modular Pipeline Design",
+    theme: "Readable Spark code scales better than one giant notebook cell.",
+    objectives: [
+      "Break a Spark job into understandable stages.",
+      "Name intermediate DataFrames for purpose, not just syntax.",
+      "Separate extraction, transform, validate, and write concerns.",
+    ],
+    topics: ["pipeline stages", "modular code", "naming", "readability", "job structure"],
+    practice: [
+      "Refactor a long transform chain into clear named stages.",
+      "Separate quality checks from transformation logic.",
+      "Explain what each stage is responsible for in plain language.",
+    ],
+    debugging: "A monolithic job is too hard to debug. Identify where stage boundaries should be introduced.",
+    businessCase: "A team needs a Spark job another engineer can inherit without reverse-engineering every line.",
+    interviewPrompts: [
+      "What does maintainable Spark code look like in a shared codebase?",
+      "Where should validation happen in a multi-step pipeline?",
+    ],
+    assessment: "Refactor a long Spark flow into a clear stage-based design.",
+    project: "Build a modular batch pipeline with named stages and quality checkpoints.",
+    revision: [
+      "Review each stage name and confirm it matches business purpose.",
+      "Re-explain the pipeline in plain English.",
+    ],
+    masteryCheckpoint: "You write Spark code that another engineer can debug without asking you to translate it first.",
+  },
+  {
+    title: "Join Strategy and Skew Awareness",
+    theme: "Hot keys can sink a job even when the logic is right.",
+    objectives: [
+      "Recognize skewed keys and their performance impact.",
+      "Separate logical correctness from distribution problems.",
+      "Use join strategy awareness when shaping large inputs.",
+    ],
+    topics: ["data skew", "join strategy", "hot keys", "distribution", "large joins"],
+    practice: [
+      "Identify which key distributions might create uneven partitions.",
+      "Compare a balanced join scenario with a skewed one.",
+      "Explain how filtering before a join can reduce cost.",
+    ],
+    debugging: "One partition runs far longer than the others after a join. Reason about whether key skew is the likely cause.",
+    businessCase: "A very large event dataset must join to reference data without one key overwhelming the job.",
+    interviewPrompts: [
+      "How would you spot join skew from behavior and data shape?",
+      "Why is a logically correct join still risky at scale?",
+    ],
+    assessment: "Review a large-join scenario and propose a safer execution strategy.",
+    project: "Design a skew-aware enrichment plan for a heavy event dataset.",
+    revision: [
+      "Review symptoms of skew in Spark jobs.",
+      "Revisit how data distribution changes join behavior.",
+    ],
+    masteryCheckpoint: "You think about distribution, not just syntax, when planning large joins.",
+  },
+  {
+    title: "Deduplication and Latest-State Modeling",
+    theme: "Production tables often need one trusted record from many candidates.",
+    objectives: [
+      "Use latest-state logic safely in Spark.",
+      "Choose the correct business key and ordering column.",
+      "Prepare reliable current-state outputs for downstream consumers.",
+    ],
+    topics: ["deduplication", "latest state", "business keys", "window latest-row", "current snapshot"],
+    practice: [
+      "Keep the latest row per business key with window logic.",
+      "Explain why a bad ordering column gives the wrong winner.",
+      "Prepare a current-state DataFrame for joins.",
+    ],
+    debugging: "A snapshot table shows stale values. Check whether the deduplication ordering is wrong.",
+    businessCase: "A customer dimension needs one current row per customer even though raw changes arrive many times.",
+    interviewPrompts: [
+      "What columns do you need before trusting latest-row logic?",
+      "How do you protect a current-state model from stale winners?",
+    ],
+    assessment: "Create a latest-state DataFrame and explain the winner-selection logic clearly.",
+    project: "Build a current-state snapshot from a raw change history dataset.",
+    revision: [
+      "Review business key vs ordering key.",
+      "Redo one latest-row challenge from scratch.",
+    ],
+    masteryCheckpoint: "You can explain why the kept row is the correct row, not just that it is the newest row.",
+  },
+  {
+    title: "Reconciliation and Source-to-Target Audits",
+    theme: "Good pipelines prove their own correctness.",
+    objectives: [
+      "Compare source and target counts at matching grain.",
+      "Build difference reports for failed loads.",
+      "Explain mismatches in business language.",
+    ],
+    topics: ["reconciliation", "source-target audits", "diffs", "row-count checks", "audit reports"],
+    practice: [
+      "Compare counts by date across staging and curated layers.",
+      "Calculate a difference metric for mismatched outputs.",
+      "Return a report that highlights only suspect partitions.",
+    ],
+    debugging: "A downstream table is missing rows. Build an audit to show where the drop first appears.",
+    businessCase: "An analytics warehouse needs daily proof that curated outputs match upstream expectations.",
+    interviewPrompts: [
+      "What is the first reconciliation check you build after a new Spark pipeline launches?",
+      "How do you make audit output actionable for another engineer?",
+    ],
+    assessment: "Create a source-to-target reconciliation report for one batch pipeline.",
+    project: "Build a reusable audit step that compares input and output by business date.",
+    revision: [
+      "Review the grain used on both sides of the audit.",
+      "Redo one difference report without notes.",
+    ],
+    masteryCheckpoint: "You can prove where a pipeline broke instead of only saying that it broke.",
+  },
+  {
+    title: "Scheduling Mindset and Batch Reliability",
+    theme: "A Spark job is part of a larger pipeline contract.",
+    objectives: [
+      "Think about reruns, idempotence, and operational safety.",
+      "Separate one-time transformations from repeatable batch jobs.",
+      "Document assumptions that production runs depend on.",
+    ],
+    topics: ["batch reliability", "reruns", "idempotence", "scheduling", "operational safety"],
+    practice: [
+      "Explain what a safe rerun requires for a daily batch step.",
+      "Identify which steps depend on a watermark or partition contract.",
+      "Write a short runbook summary for a Spark batch job.",
+    ],
+    debugging: "A rerun duplicated output. Identify which part of the job design was not idempotent.",
+    businessCase: "Operations needs a Spark pipeline that can be rerun after failure without corrupting the target table.",
+    interviewPrompts: [
+      "What makes a Spark batch job safe to rerun?",
+      "What should a minimal production runbook include?",
+    ],
+    assessment: "Describe how you would operationalize one Spark job for scheduled daily execution.",
+    project: "Write a reliability checklist and rerun plan for a batch pipeline.",
+    revision: [
+      "Review idempotence and rerun conditions.",
+      "Re-explain the operational contract of one job.",
+    ],
+    masteryCheckpoint: "You start thinking like the engineer who has to own the job at 2 AM.",
+  },
+  {
+    title: "Optimization Review and Practical Tuning",
+    theme: "Tune only after you understand the real bottleneck.",
+    objectives: [
+      "Read high-level execution behavior before changing code blindly.",
+      "Connect shuffle, skew, and layout issues to runtime symptoms.",
+      "Choose practical next steps instead of premature micro-optimizations.",
+    ],
+    topics: ["practical tuning", "execution review", "shuffle diagnosis", "layout review", "bottleneck analysis"],
+    practice: [
+      "Read a slow-job scenario and identify likely dominant cost drivers.",
+      "Match runtime symptoms to data movement or skew problems.",
+      "Prioritize fixes from biggest to smallest impact.",
+    ],
+    debugging: "A team wants to tune everything at once. Decide which bottleneck deserves attention first.",
+    businessCase: "A production Spark job is breaching its batch window and needs focused tuning, not random changes.",
+    interviewPrompts: [
+      "How do you choose the first thing to investigate in a slow Spark job?",
+      "Why is premature tuning risky in shared pipelines?",
+    ],
+    assessment: "Produce a short tuning plan with evidence-backed priorities.",
+    project: "Review a slow pipeline and write the top three pragmatic fixes.",
+    revision: [
+      "Review the difference between symptom and root cause.",
+      "Rank possible performance fixes by expected impact.",
+    ],
+    masteryCheckpoint: "You can prioritize Spark tuning work without guessing wildly.",
+  },
+  {
+    title: "Lakehouse-Scale Job Design",
+    theme: "Think beyond one transformation to the full platform flow.",
+    objectives: [
+      "Connect ingestion, transform, validate, and publish stages.",
+      "Reason about curated zones and reusable outputs.",
+      "Design jobs that fit a broader data platform.",
+    ],
+    topics: ["lakehouse flow", "curated layers", "publish steps", "platform thinking", "end-to-end design"],
+    practice: [
+      "Map one job into a multi-layer data platform flow.",
+      "Describe what belongs in raw, staging, and curated outputs.",
+      "Define which validations belong before publish.",
+    ],
+    debugging: "A team cannot tell where ownership changes across the pipeline. Clarify the job’s place in the broader platform.",
+    businessCase: "A data platform team wants Spark jobs that plug cleanly into a lakehouse-style architecture.",
+    interviewPrompts: [
+      "How does one Spark job fit into a broader lakehouse flow?",
+      "What separates a staging output from a curated output?",
+    ],
+    assessment: "Design an end-to-end Spark flow from ingest to publish with clear stage boundaries.",
+    project: "Blueprint a lakehouse-friendly batch pipeline for product analytics data.",
+    revision: [
+      "Review layer responsibilities from raw to curated.",
+      "Redraw the end-to-end job flow from memory.",
+    ],
+    masteryCheckpoint: "You can place a Spark job inside a larger platform design instead of treating it like an isolated script.",
+  },
+  {
+    title: "Capstone: Production PySpark Pipeline",
+    theme: "Combine transforms, validation, reliability, and performance thinking in one job.",
+    objectives: [
+      "Deliver an end-to-end PySpark pipeline design.",
+      "Explain business grain, data quality, and runtime tradeoffs together.",
+      "Finish with a believable data-engineering Spark foundation.",
+    ],
+    topics: ["capstone", "end-to-end pipeline", "validation", "performance", "production tradeoffs"],
+    practice: [
+      "Rebuild key transforms without notes.",
+      "Explain the validation and partition strategy out loud.",
+      "Review the pipeline like a production handoff document.",
+    ],
+    debugging: "A final capstone pipeline has one logic issue, one data-quality gap, and one runtime risk. Prioritize the fixes.",
+    businessCase: "Deliver a PySpark batch pipeline another data engineer could review, extend, and run with confidence.",
+    interviewPrompts: [
+      "What tradeoffs did you make in your final PySpark design?",
+      "What would you improve next if this became a production job?",
+    ],
+    assessment: "Submit a capstone Spark pipeline plan with transforms, checks, and operational reasoning.",
+    project: "Capstone: production-style PySpark batch pipeline with validation, partition strategy, and tuning notes.",
+    revision: [
+      "Review your biggest Spark weakness from the course.",
+      "Redo one high-value transformation or audit from scratch.",
+    ],
+    masteryCheckpoint: "You leave with a real PySpark pipeline mindset, not just isolated DataFrame syntax.",
+  },
+] as const;
+
+const pysparkWeeksInput: WeekInput[] = pysparkPlanInputs.map((plan, index) => ({
+  monthNumber: Math.floor(index / 4) + 1,
+  weekNumber: index + 1,
+  levelNumber: index + 1,
+  title: plan.title,
+  theme: plan.theme,
+  objectives: [...plan.objectives],
+  topics: [...plan.topics],
+  guidedLessons: [
+    {
+      title: `${plan.title}: mental model`,
+      summary: `Build intuition for ${plan.topics[0]} and ${plan.topics[1] ?? plan.topics[0]} in a distributed-data setting.`,
+      estimatedMinutes: 30,
+      tags: ["mental-model", plan.topics[0].toLowerCase().replace(/\s+/g, "-")],
+    },
+    {
+      title: `${plan.title}: practical transforms`,
+      summary: `Apply ${plan.topics.slice(0, 3).join(", ")} to a realistic data-engineering problem.`,
+      estimatedMinutes: 35,
+      tags: ["practice", plan.topics[1].toLowerCase().replace(/\s+/g, "-")],
+    },
+    {
+      title: `${plan.title}: debugging and review`,
+      summary: `Use the week ideas to inspect failure modes, tradeoffs, and production behavior.`,
+      estimatedMinutes: 30,
+      tags: ["debugging", "review"],
+    },
+  ],
+  practice: [...plan.practice],
+  debugging: plan.debugging,
+  businessCase: plan.businessCase,
+  interviewPrompts: [...plan.interviewPrompts],
+  assessment: plan.assessment,
+  project: plan.project,
+  revision: [...plan.revision],
+  masteryCheckpoint: plan.masteryCheckpoint,
+}));
+
 export const sqlWeeks = toWeeks("sql", sqlWeeksInput);
 export const pythonWeeks = toWeeks("python", pythonWeeksInput);
-export const allWeeks = [...sqlWeeks, ...pythonWeeks];
+export const pysparkWeeks = toWeeks("pyspark", pysparkWeeksInput);
+export const allWeeks = [...sqlWeeks, ...pythonWeeks, ...pysparkWeeks];
 
 export const lessons: LessonRecord[] = allWeeks.flatMap((week) =>
   week.guidedLessons.map((lesson) =>

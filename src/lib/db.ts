@@ -7,6 +7,7 @@ import {
   AppBackupPayload,
   BackupRecord,
   CandyArcadeLevelProgressRecord,
+  CourseSlug,
   CourseProgressRecord,
   CourseSeed,
   DatasetSeed,
@@ -168,7 +169,7 @@ const buildWeekLockReason = (weekNumber: number, courseSlug: string) => {
   return `Complete Week ${weekNumber - 1} to unlock this week.`;
 };
 
-const courseProgressSeed = (courseSlug: "sql" | "python"): CourseProgressRecord => {
+const courseProgressSeed = (courseSlug: CourseSlug): CourseProgressRecord => {
   const weeks = getWeeksByCourse(courseSlug);
   const firstWeek = weeks[0];
   const firstLesson = lessons.find((lesson) => lesson.weekId === firstWeek.id);
@@ -325,6 +326,9 @@ const errorSeeds = (): ErrorLogRecord[] => {
 export async function initializeDatabase() {
   const existingCourses = await db.courses.count();
   if (existingCourses > 0) {
+    await ensureCourseProgressRecords();
+    await ensureWeekProgressRecords();
+    await ensureLessonProgressRecords();
     await ensureWeekProgressLocks();
     await ensureSqlTaskProgress();
     await reconcileSqlWeekUnlocks();
@@ -361,7 +365,7 @@ export async function initializeDatabase() {
       await db.projects.bulkPut(projects);
       await db.datasets.bulkPut(datasets);
       await db.topicMastery.bulkPut(topicMasterySeeds);
-      await db.courseProgress.bulkPut([courseProgressSeed("sql"), courseProgressSeed("python")]);
+      await db.courseProgress.bulkPut(courses.map((course) => courseProgressSeed(course.slug)));
       await db.weekProgress.bulkPut(weekProgressSeeds());
       await db.lessonProgress.bulkPut(lessonProgressSeeds());
       await db.revisionQueue.bulkPut(revisionSeeds());
@@ -425,6 +429,38 @@ async function ensureSqlTaskProgress() {
       lockReason: sqlWeekOneUnlockMessage,
       updatedAt: nowIso(),
     });
+  }
+}
+
+async function ensureCourseProgressRecords() {
+  const existing = await db.courseProgress.toArray();
+  const existingSlugs = new Set(existing.map((record) => record.courseSlug));
+  const missing = courses
+    .filter((course) => !existingSlugs.has(course.slug))
+    .map((course) => courseProgressSeed(course.slug));
+
+  if (missing.length > 0) {
+    await db.courseProgress.bulkPut(missing);
+  }
+}
+
+async function ensureWeekProgressRecords() {
+  const existing = await db.weekProgress.toArray();
+  const existingIds = new Set(existing.map((record) => record.weekId));
+  const missing = weekProgressSeeds().filter((record) => !existingIds.has(record.weekId));
+
+  if (missing.length > 0) {
+    await db.weekProgress.bulkPut(missing);
+  }
+}
+
+async function ensureLessonProgressRecords() {
+  const existing = await db.lessonProgress.toArray();
+  const existingIds = new Set(existing.map((record) => record.lessonId));
+  const missing = lessonProgressSeeds().filter((record) => !existingIds.has(record.lessonId));
+
+  if (missing.length > 0) {
+    await db.lessonProgress.bulkPut(missing);
   }
 }
 
@@ -531,7 +567,7 @@ async function ensureWeekProgressLocks() {
   }
 }
 
-export async function logStudyMinutes(courseSlug: "sql" | "python", minutes: number) {
+export async function logStudyMinutes(courseSlug: CourseSlug, minutes: number) {
   const progress = await db.courseProgress.get(`course-progress-${courseSlug}`);
   if (!progress) return;
 
@@ -633,7 +669,7 @@ export async function resetAllProgress() {
   await initializeDatabase();
 }
 
-export async function resetCourseProgress(courseSlug: "sql" | "python") {
+export async function resetCourseProgress(courseSlug: CourseSlug) {
   const weekIds = getWeeksByCourse(courseSlug).map((week) => week.id);
   const lessonIds = lessons.filter((lesson) => lesson.courseSlug === courseSlug).map((lesson) => lesson.id);
 

@@ -253,7 +253,7 @@ const trackInputs: AcademyTrack[] = [
     capstoneCount: 6,
     projectsCount: 8,
     dailyMinutes: 75,
-    continueHref: "/materials?track=pyspark",
+    continueHref: "/pyspark/week/pyspark-week-01",
     supportCopy: "This lane stays separate from weekly missions so you can rehearse Spark thinking with short game-style challenges.",
     stageLadder: stageDefaults,
     materialPillars: [
