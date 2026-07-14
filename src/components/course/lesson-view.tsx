@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
-import { ArrowRight, Brain, BriefcaseBusiness, Bug, Gauge, Lightbulb, MessagesSquare } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLiveQuery } from "dexie-react-hooks";
+import { ArrowRight, Brain, BriefcaseBusiness, Bug, CheckCircle2, Gauge, Lightbulb, MessagesSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { touchLesson } from "@/lib/db";
+import { completeLesson, db, touchLesson } from "@/lib/db";
 import { CourseSlug } from "@/lib/types";
 import { getLessonById, getWeekById } from "@/lib/curriculum";
 import { cn } from "@/lib/utils";
@@ -14,8 +16,12 @@ import { cn } from "@/lib/utils";
 const lessonIcons = [Lightbulb, Brain, BriefcaseBusiness, Bug, Gauge, MessagesSquare];
 
 export function LessonView({ lessonId, courseSlug }: { lessonId: string; courseSlug: CourseSlug }) {
+  const router = useRouter();
   const lesson = getLessonById(lessonId);
   const week = lesson ? getWeekById(lesson.weekId) : null;
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const progress = useLiveQuery(() => db.lessonProgress.get(`lesson-progress-${lessonId}`), [lessonId]);
 
   useEffect(() => {
     if (lessonId) {
@@ -26,7 +32,6 @@ export function LessonView({ lessonId, courseSlug }: { lessonId: string; courseS
   if (!lesson || !week || lesson.courseSlug !== courseSlug) {
     return <div className="text-sm text-muted-foreground">Lesson not found.</div>;
   }
-
   const sections = [
     {
       title: "Intuition",
@@ -62,6 +67,12 @@ export function LessonView({ lessonId, courseSlug }: { lessonId: string; courseS
             <Badge variant="outline">{courseSlug.toUpperCase()}</Badge>
             <Badge variant="outline">Week {week.weekNumber}</Badge>
             <Badge variant="outline">{lesson.estimatedMinutes} min</Badge>
+            {progress?.status === "completed" ? (
+              <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-200">
+                <CheckCircle2 className="mr-1 size-3.5" />
+                Completed
+              </Badge>
+            ) : null}
           </div>
           <div className="space-y-2">
             <h1 className="font-heading text-3xl font-semibold tracking-tight">{lesson.title}</h1>
@@ -76,6 +87,12 @@ export function LessonView({ lessonId, courseSlug }: { lessonId: string; courseS
           </div>
         </CardHeader>
       </Card>
+
+      {message ? (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
+          {message}
+        </div>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {sections.map((section, index) => {
@@ -127,6 +144,25 @@ export function LessonView({ lessonId, courseSlug }: { lessonId: string; courseS
               <p className="font-medium">Revision queue</p>
               <p className="mt-1 text-muted-foreground">{week.revision.join(" ")}</p>
             </div>
+            <Button
+              onClick={async () => {
+                setIsCompleting(true);
+                setMessage(null);
+                try {
+                  const result = await completeLesson(lesson.id);
+                  if (result.nextLessonId) {
+                    router.push(`/${courseSlug}/lesson/${result.nextLessonId}`);
+                    return;
+                  }
+                  setMessage("Lesson completed. This track step is saved locally.");
+                } finally {
+                  setIsCompleting(false);
+                }
+              }}
+              disabled={isCompleting || progress?.status === "completed"}
+            >
+              {progress?.status === "completed" ? "Lesson completed" : "Mark lesson complete"}
+            </Button>
             <Link href={`/${courseSlug}/week/${week.id}`} className={cn(buttonVariants(), "inline-flex")}>
               Back to week
               <ArrowRight className="ml-2 size-4" />

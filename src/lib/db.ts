@@ -618,6 +618,134 @@ export async function touchLesson(lessonId: string) {
   });
 }
 
+export async function completeLesson(lessonId: string) {
+  const lesson = await db.lessons.get(lessonId);
+  if (!lesson) {
+    return { nextLessonId: null, nextWeekId: null };
+  }
+
+  const progress = await db.lessonProgress.get(`lesson-progress-${lessonId}`);
+  const courseProgress = await db.courseProgress.get(`course-progress-${lesson.courseSlug}`);
+  if (!progress || !courseProgress) {
+    return { nextLessonId: null, nextWeekId: null };
+  }
+
+  const courseWeeks = getWeeksByCourse(lesson.courseSlug);
+  const currentWeekIndex = courseWeeks.findIndex((week) => week.id === lesson.weekId);
+  const nextWeek = currentWeekIndex >= 0 ? courseWeeks[currentWeekIndex + 1] ?? null : null;
+  const weekLessons = lessons.filter((item) => item.weekId === lesson.weekId);
+  const lessonIndex = weekLessons.findIndex((item) => item.id === lessonId);
+  const nextLesson = lessonIndex >= 0 ? weekLessons[lessonIndex + 1] ?? null : null;
+  const firstLessonOfNextWeek = nextWeek
+    ? lessons.find((item) => item.weekId === nextWeek.id) ?? null
+    : null;
+
+  let nextLessonId: string | null = nextLesson?.id ?? firstLessonOfNextWeek?.id ?? null;
+  let nextWeekId: string | null = nextWeek?.id ?? null;
+
+  await db.transaction("rw", db.lessonProgress, db.weekProgress, db.courseProgress, async () => {
+    const lessonProgressRecords = await db.lessonProgress
+      .where("courseSlug")
+      .equals(lesson.courseSlug)
+      .toArray();
+
+    const updatedCurrentLesson = {
+      ...progress,
+      status: "completed" as const,
+      score: 100,
+      attempts: Math.max(progress.attempts, 1),
+      completedAt: progress.completedAt ?? nowIso(),
+      lastOpenedAt: progress.lastOpenedAt ?? nowIso(),
+      updatedAt: nowIso(),
+    };
+
+    await db.lessonProgress.put(updatedCurrentLesson);
+
+    if (nextLesson) {
+      const nextLessonProgress = await db.lessonProgress.get(`lesson-progress-${nextLesson.id}`);
+      if (nextLessonProgress && nextLessonProgress.status === "locked") {
+        await db.lessonProgress.put({
+          ...nextLessonProgress,
+          status: "unlocked",
+          updatedAt: nowIso(),
+        });
+      }
+    }
+
+    const updatedLessonRecords = lessonProgressRecords.map((record) =>
+      record.lessonId === lessonId ? updatedCurrentLesson : record,
+    );
+
+    const weekLessonIds = new Set(weekLessons.map((item) => item.id));
+    const completedWeekLessons = updatedLessonRecords.filter(
+      (record) => weekLessonIds.has(record.lessonId) && record.status === "completed",
+    ).length;
+    const weekScore = Math.round((completedWeekLessons / weekLessons.length) * 100);
+    const currentWeekProgress = await db.weekProgress.get(`week-progress-${lesson.weekId}`);
+
+    if (currentWeekProgress) {
+      await db.weekProgress.put({
+        ...currentWeekProgress,
+        status: completedWeekLessons === weekLessons.length ? "completed" : "in_progress",
+        score: weekScore,
+        lockReason: null,
+        updatedAt: nowIso(),
+      });
+    }
+
+    if (completedWeekLessons === weekLessons.length && nextWeek) {
+      const nextWeekProgress = await db.weekProgress.get(`week-progress-${nextWeek.id}`);
+      if (nextWeekProgress && nextWeekProgress.status === "locked") {
+        await db.weekProgress.put({
+          ...nextWeekProgress,
+          status: "unlocked",
+          lockReason: null,
+          updatedAt: nowIso(),
+        });
+      }
+
+      if (firstLessonOfNextWeek) {
+        const firstLessonProgress = await db.lessonProgress.get(`lesson-progress-${firstLessonOfNextWeek.id}`);
+        if (firstLessonProgress && firstLessonProgress.status === "locked") {
+          await db.lessonProgress.put({
+            ...firstLessonProgress,
+            status: "unlocked",
+            updatedAt: nowIso(),
+          });
+        }
+      }
+    } else if (!nextLesson) {
+      nextLessonId = null;
+      nextWeekId = null;
+    }
+
+    const courseLessonIds = new Set(lessons.filter((item) => item.courseSlug === lesson.courseSlug).map((item) => item.id));
+    const completedCourseLessons = updatedLessonRecords.filter(
+      (record) => courseLessonIds.has(record.lessonId) && record.status === "completed",
+    ).length;
+    const totalCourseLessons = courseLessonIds.size;
+    const completionPercent = totalCourseLessons
+      ? Math.round((completedCourseLessons / totalCourseLessons) * 100)
+      : 0;
+
+    await db.courseProgress.put({
+      ...courseProgress,
+      currentWeekId:
+        nextLessonId && nextWeekId && firstLessonOfNextWeek?.id === nextLessonId
+          ? nextWeekId
+          : lesson.weekId,
+      currentLessonId: nextLessonId ?? lessonId,
+      completionPercent,
+      exercisesSolved: completedCourseLessons,
+      lastActivityAt: nowIso(),
+      streakDays: courseProgress.streakDays === 0 ? 1 : courseProgress.streakDays,
+      updatedAt: nowIso(),
+    });
+  });
+
+  return { nextLessonId, nextWeekId };
+}
+
 async function serializeDatabase(): Promise<AppBackupPayload> {
   const tableNames = db.tables.map((table) => table.name);
   const data = Object.fromEntries(

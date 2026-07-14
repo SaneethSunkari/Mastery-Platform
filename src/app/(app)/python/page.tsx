@@ -1,5 +1,5 @@
-import { CourseGameMap } from "@/components/game/course-game-map";
+import { CourseOverview } from "@/components/course/course-overview";
 
 export default function PythonPage() {
-  return <CourseGameMap courseSlug="python" />;
+  return <CourseOverview courseSlug="python" />;
 }

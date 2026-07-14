@@ -1,5 +1,5 @@
-import { CourseGameMap } from "@/components/game/course-game-map";
+import { CourseOverview } from "@/components/course/course-overview";
 
 export default function PySparkPage() {
-  return <CourseGameMap courseSlug="pyspark" />;
+  return <CourseOverview courseSlug="pyspark" />;
 }

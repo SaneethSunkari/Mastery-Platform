@@ -68,6 +68,18 @@ export function CourseOverview({ courseSlug }: { courseSlug: CourseSlug }) {
             >
               Continue current lesson
             </Link>
+            <Link
+              href={`/materials?track=${courseSlug}`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Open materials
+            </Link>
+            <Link
+              href="/arcade"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Open Candy Arcade
+            </Link>
           </div>
         </CardHeader>
       </Card>

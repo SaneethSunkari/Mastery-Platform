@@ -15,8 +15,9 @@ export function WeekView({ weekId, courseSlug }: { weekId: string; courseSlug: C
   const week = getWeekById(weekId);
   const lessons = getLessonsByWeek(weekId);
   const weekProgress = useLiveQuery(() => db.weekProgress.get(`week-progress-${weekId}`), [weekId]);
+  const lessonProgress = useLiveQuery(() => db.lessonProgress.where("weekId").equals(weekId).toArray(), [weekId]);
 
-  if (!week || week.courseSlug !== courseSlug) {
+  if (!week || week.courseSlug !== courseSlug || !lessonProgress) {
     return <div className="text-sm text-muted-foreground">Week not found.</div>;
   }
 
@@ -76,14 +77,39 @@ export function WeekView({ weekId, courseSlug }: { weekId: string; courseSlug: C
                 <div>
                   <p className="font-medium">{lesson.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{lesson.summary}</p>
+                  <div className="mt-2">
+                    {(() => {
+                      const progress = lessonProgress.find((item) => item.lessonId === lesson.id);
+                      if (progress?.status === "completed") {
+                        return <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-200">Completed</Badge>;
+                      }
+                      if (progress?.status === "in_progress" || progress?.status === "unlocked") {
+                        return <Badge variant="secondary">Ready</Badge>;
+                      }
+                      return <Badge variant="outline">Locked</Badge>;
+                    })()}
+                  </div>
                 </div>
-                <Link
-                  href={`/${courseSlug}/lesson/${lesson.id}`}
-                  className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}
-                >
-                  Open lesson
-                  <ArrowRight className="ml-2 size-4" />
-                </Link>
+                {(() => {
+                  const progress = lessonProgress.find((item) => item.lessonId === lesson.id);
+                  if (progress?.status === "locked") {
+                    return (
+                      <div className="rounded-2xl border border-dashed border-border/70 bg-muted/40 px-4 py-2 text-sm text-muted-foreground">
+                        Finish the previous lesson first
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      href={`/${courseSlug}/lesson/${lesson.id}`}
+                      className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}
+                    >
+                      {progress?.status === "completed" ? "Review lesson" : "Open lesson"}
+                      <ArrowRight className="ml-2 size-4" />
+                    </Link>
+                  );
+                })()}
               </div>
             ))}
           </CardContent>
