@@ -18,6 +18,12 @@ import { cn } from "@/lib/utils";
 
 export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
   const track = academyTrackMap[courseSlug];
+  const primaryCtaLabel =
+    courseSlug === "sql"
+      ? "Continue track"
+      : courseSlug === "python"
+        ? "Start Python Week 1"
+        : "Open PySpark notes";
   const levels = useMemo(
     () => allGameLevels.filter((level) => level.courseSlug === courseSlug),
     [courseSlug],
@@ -91,7 +97,7 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
               href={track.continueHref}
               className={cn(buttonVariants(), "inline-flex rounded-full", track.buttonClassName)}
             >
-              Continue track
+              {primaryCtaLabel}
               <ArrowRight className="ml-2 size-4" />
             </Link>
             <Link

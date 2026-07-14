@@ -159,7 +159,7 @@ const trackInputs: AcademyTrack[] = [
     capstoneCount: 8,
     projectsCount: 10,
     dailyMinutes: 90,
-    continueHref: "/python",
+    continueHref: "/python/week/python-week-01",
     supportCopy: "Use simple explanations first, then practice with drills, mini-builds, and interview-style coding rounds.",
     stageLadder: stageDefaults,
     materialPillars: [
@@ -253,7 +253,7 @@ const trackInputs: AcademyTrack[] = [
     capstoneCount: 6,
     projectsCount: 8,
     dailyMinutes: 75,
-    continueHref: "/pyspark",
+    continueHref: "/materials?track=pyspark",
     supportCopy: "This lane stays separate from weekly missions so you can rehearse Spark thinking with short game-style challenges.",
     stageLadder: stageDefaults,
     materialPillars: [
