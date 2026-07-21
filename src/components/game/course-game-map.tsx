@@ -20,10 +20,10 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
   const track = academyTrackMap[courseSlug];
   const primaryCtaLabel =
     courseSlug === "sql"
-      ? "Continue track"
+      ? "Continue verified lane"
       : courseSlug === "python"
-        ? "Start Python Week 1"
-        : "Start PySpark Week 1";
+        ? "Continue guided lane"
+        : "Continue guided lane";
   const levels = useMemo(
     () => allGameLevels.filter((level) => level.courseSlug === courseSlug),
     [courseSlug],
@@ -54,17 +54,15 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
   const currentLevel = progress.find((item) => item.unlocked && !item.completed)?.levelNumber ?? completedCount + 1;
   const visibleLevels = levels.slice(0, 100);
   const questionSamples = getTrackQuestionSamples(courseSlug, 4);
-  const materialsMonthCount = track.monthPlan.length;
-
   return (
     <div className="space-y-6">
       <Card className={cn("border-0 bg-linear-to-br text-white", track.surfaceClassName)}>
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={track.badgeClassName}>{track.title}</Badge>
-            <Badge className="bg-white/10 text-white hover:bg-white/10">{track.questionBankCount} question bank</Badge>
+            <Badge className="bg-white/10 text-white hover:bg-white/10">{track.questionBankCount} drill bank</Badge>
             <Badge className="bg-white/10 text-white hover:bg-white/10">{track.arcadeLevelCount} game levels</Badge>
-            <Badge className="bg-white/10 text-white hover:bg-white/10">{track.weeklyTaskCount} guided tasks</Badge>
+            <Badge className="bg-white/10 text-white hover:bg-white/10">{track.weeklyTaskCount} guided live items</Badge>
           </div>
           <div className="space-y-2">
             <CardTitle className="text-3xl font-semibold tracking-tight">{track.tagline}</CardTitle>
@@ -88,8 +86,8 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
               <p className="mt-2 text-3xl font-semibold">{track.arcadeLevelCount}</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Easy notes</p>
-              <p className="mt-2 text-3xl font-semibold">{materialsMonthCount} months</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Guided items</p>
+              <p className="mt-2 text-3xl font-semibold">{track.weeklyTaskCount}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -110,13 +108,13 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
               Open dashboard
             </Link>
             <Link
-              href={`/materials?track=${courseSlug}`}
+              href={`/practice?track=${courseSlug}`}
               className={cn(
                 buttonVariants({ variant: "outline" }),
                 "inline-flex border-white/20 text-white hover:bg-white/10 hover:text-white",
               )}
             >
-              Open easy notes
+              Open 3000 drills
             </Link>
             <Link
               href="/arcade"
@@ -167,7 +165,7 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
           <CardHeader>
             <CardTitle className="text-2xl font-semibold">How this track works</CardTitle>
             <CardDescription>
-              Weekly missions teach the concept. The candy arcade is separate and exists for repetition, speed, and confidence building.
+              Guided work teaches the concept. The drill bank and arcade stay separate so repetition does not interrupt learning flow.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
@@ -177,14 +175,14 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
               </div>
               <p className="font-medium">Weekly missions</p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Step-by-step practice with explanations, materials, and deliberate unlocks.
+                Step-by-step guided work with blank editors, deliberate unlocks, and code-first repetition.
               </p>
             </div>
             <div className="rounded-3xl border border-border/70 p-4">
               <div className="mb-3 inline-flex rounded-2xl border border-border/70 bg-accent/40 p-3">
                 <Gamepad2 className="size-4" />
               </div>
-              <p className="font-medium">Arcade game</p>
+              <p className="font-medium">Track game path</p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {track.arcadeLevelCount} bite-size levels that go from easy to expert without showing direct answers first.
               </p>
@@ -193,7 +191,7 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
               <div className="mb-3 inline-flex rounded-2xl border border-border/70 bg-accent/40 p-3">
                 <Swords className="size-4" />
               </div>
-              <p className="font-medium">Interview and production rounds</p>
+              <p className="font-medium">Production rounds</p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 The later stages focus on debugging, scale, and senior-level tradeoff thinking.
               </p>
@@ -220,25 +218,9 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
       <section className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-semibold">Separate easy notes</CardTitle>
-            <CardDescription>
-              Simple notes you can study separately from the missions, but still aimed at real data-engineering work.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {track.materialPillars.map((pillar) => (
-              <div key={pillar} className="rounded-3xl border border-border/70 p-4 text-sm leading-6 text-muted-foreground">
-                {pillar}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle className="text-2xl font-semibold">Question bank preview</CardTitle>
             <CardDescription>
-              Separate from the weekly labs. These are the fast-repeat practice prompts you use to sharpen skill.
+              Separate from the weekly labs. These are generated repeat-practice drills you use to sharpen skill at scale.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -250,6 +232,22 @@ export function CourseGameMap({ courseSlug }: { courseSlug: CourseSlug }) {
                 </div>
                 <p className="mt-3 font-medium">{question.title}</p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">{question.prompt}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-semibold">Track focus</CardTitle>
+            <CardDescription>
+              This lane is aimed at steady code practice from beginner basics to data-engineering depth.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {track.materialPillars.map((pillar) => (
+              <div key={pillar} className="rounded-3xl border border-border/70 p-4 text-sm leading-6 text-muted-foreground">
+                {pillar}
               </div>
             ))}
           </CardContent>

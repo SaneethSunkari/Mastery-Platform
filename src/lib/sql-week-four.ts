@@ -2,7 +2,7 @@ import { SqlTaskDefinition } from "@/lib/types";
 
 export const sqlWeekFourId = "sql-week-04";
 
-export const sqlWeekFourTasks: SqlTaskDefinition[] = [
+const sqlWeekFourBaseTasks: SqlTaskDefinition[] = [
   {
     id: "sql-week-04-task-01",
     weekId: sqlWeekFourId,
@@ -239,5 +239,239 @@ export const sqlWeekFourTasks: SqlTaskDefinition[] = [
   },
 ];
 
+function buildSqlWeekFourGeneratedTasks(): SqlTaskDefinition[] {
+  const families: Array<(stepNumber: number) => Omit<SqlTaskDefinition, "id" | "weekId" | "stepNumber">> = [
+    (stepNumber) => ({
+      title: `Revenue by status metric ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Aggregate order revenue by status.",
+      instructions: [
+        "Return `status`, order count as `order_count`, and total amount as `total_amount`.",
+        "Sort by `status`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT status, COUNT(*) AS order_count, SUM(amount) AS total_amount
+FROM orders
+GROUP BY status
+ORDER BY status;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Payment gateway reconciliation ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Aggregate payment amounts by gateway for reconciliation.",
+      instructions: [
+        "Return `gateway`, captured payment count, and captured payment total.",
+        "Use aliases `captured_count` and `captured_total`.",
+        "Sort by `captured_total` descending.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT gateway, COUNT(*) AS captured_count, SUM(payment_amount) AS captured_total
+FROM payments
+WHERE payment_status = 'captured'
+GROUP BY gateway
+ORDER BY captured_total DESC;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Country paid revenue HAVING ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use HAVING after joining and grouping.",
+      instructions: [
+        "Return countries with paid revenue above 100.",
+        "Show `country` and `paid_revenue`.",
+        "Sort by `paid_revenue` descending.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT c.country, SUM(o.amount) AS paid_revenue
+FROM customers AS c
+JOIN orders AS o
+  ON o.customer_id = c.customer_id
+WHERE o.status = 'paid'
+GROUP BY c.country
+HAVING SUM(o.amount) > 100
+ORDER BY paid_revenue DESC;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `CASE order value bands ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use CASE to create deterministic value bands before grouping.",
+      instructions: [
+        "Bucket orders into `high`, `medium`, and `low` using amount >= 200 and amount >= 100.",
+        "Return `amount_band` and `order_count`.",
+        "Sort by `amount_band`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT
+  CASE
+    WHEN amount >= 200 THEN 'high'
+    WHEN amount >= 100 THEN 'medium'
+    ELSE 'low'
+  END AS amount_band,
+  COUNT(*) AS order_count
+FROM orders
+GROUP BY amount_band
+ORDER BY amount_band;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `CTE paid customer revenue ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use a CTE to isolate paid orders before aggregation.",
+      instructions: [
+        "Use a CTE named `paid_orders`.",
+        "Return `customer_name` and `paid_revenue`.",
+        "Sort by `paid_revenue` descending.",
+      ],
+      starterSql: "",
+      solutionSql: `WITH paid_orders AS (
+  SELECT customer_id, amount
+  FROM orders
+  WHERE status = 'paid'
+)
+SELECT c.customer_name, SUM(p.amount) AS paid_revenue
+FROM paid_orders AS p
+JOIN customers AS c
+  ON c.customer_id = p.customer_id
+GROUP BY c.customer_name
+ORDER BY paid_revenue DESC;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Subquery above average orders ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use a scalar subquery for above-average filtering.",
+      instructions: [
+        "Return orders with amount greater than the average order amount.",
+        "Show `order_id`, `amount`, and `status`.",
+        "Sort by `amount` descending.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT order_id, amount, status
+FROM orders
+WHERE amount > (SELECT AVG(amount) FROM orders)
+ORDER BY amount DESC;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Payment order amount mismatch ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Reconcile order amount to payment amount.",
+      instructions: [
+        "Return payment rows where payment amount differs from order amount.",
+        "Show `order_id`, `amount`, `payment_amount`, and `payment_status`.",
+        "Sort by `order_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT o.order_id, o.amount, p.payment_amount, p.payment_status
+FROM orders AS o
+JOIN payments AS p
+  ON p.order_id = o.order_id
+WHERE p.payment_amount <> o.amount
+ORDER BY o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Latest order per customer CTE ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use a CTE and grouped max date to find latest customer orders.",
+      instructions: [
+        "Return each customer's latest order date.",
+        "Show `customer_name` and `latest_order_date`.",
+        "Sort by `latest_order_date` descending.",
+      ],
+      starterSql: "",
+      solutionSql: `WITH latest AS (
+  SELECT customer_id, MAX(order_date) AS latest_order_date
+  FROM orders
+  GROUP BY customer_id
+)
+SELECT c.customer_name, l.latest_order_date
+FROM latest AS l
+JOIN customers AS c
+  ON c.customer_id = l.customer_id
+ORDER BY l.latest_order_date DESC;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Window ranked orders ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use row_number-style window logic for ranked transactions.",
+      instructions: [
+        "Return the highest amount order for each customer.",
+        "Show `customer_id`, `order_id`, `amount`, and `amount_rank`.",
+        "Sort by `customer_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `WITH ranked AS (
+  SELECT
+    customer_id,
+    order_id,
+    amount,
+    ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY amount DESC, order_id) AS amount_rank
+  FROM orders
+)
+SELECT customer_id, order_id, amount, amount_rank
+FROM ranked
+WHERE amount_rank = 1
+ORDER BY customer_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Shipment SLA summary ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Aggregate fulfillment durations with null-safe filtering.",
+      instructions: [
+        "Return delivered shipment count by carrier.",
+        "Also return average delivery days as `avg_delivery_days`.",
+        "Sort by `carrier`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT carrier, COUNT(*) AS delivered_count, AVG(julianday(delivered_date) - julianday(shipped_date)) AS avg_delivery_days
+FROM shipments
+WHERE delivered_date IS NOT NULL
+GROUP BY carrier
+ORDER BY carrier;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Event source quality summary ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use conditional aggregation for event quality checks.",
+      instructions: [
+        "Return `source_system`, total events, and missing batch count.",
+        "Use aliases `event_count` and `missing_batch_count`.",
+        "Sort by `source_system`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT
+  source_system,
+  COUNT(*) AS event_count,
+  SUM(CASE WHEN batch_id IS NULL THEN 1 ELSE 0 END) AS missing_batch_count
+FROM events
+GROUP BY source_system
+ORDER BY source_system;`,
+      orderSensitive: true,
+    }),
+  ];
+
+  return Array.from({ length: 110 }, (_, index) => {
+    const stepNumber = index + 16;
+    const task = families[index % families.length](stepNumber);
+    return {
+      id: `sql-week-04-task-${String(stepNumber).padStart(3, "0")}`,
+      weekId: sqlWeekFourId,
+      stepNumber,
+      ...task,
+    };
+  });
+}
+
+export const sqlWeekFourTasks: SqlTaskDefinition[] = [
+  ...sqlWeekFourBaseTasks,
+  ...buildSqlWeekFourGeneratedTasks(),
+];
+
 export const sqlWeekFourUnlockMessage =
-  "Complete all 15 Week 4 tasks with correct answers to finish this current SQL mission block and move into deeper zero-to-legend materials.";
+  "Complete all 15 Week 4 tasks with correct answers to finish this current SQL mission block and move into deeper zero-to-legend practice.";

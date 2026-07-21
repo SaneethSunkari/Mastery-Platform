@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: House },
-  { href: "/materials", label: "Materials", icon: BookOpenText },
+  { href: "/materials/sql", label: "Materials", icon: BookOpenText },
   { href: "/arcade", label: "Candy Arcade", icon: Gem },
   { href: "/sql", label: "SQL Mastery", icon: TerminalSquare },
   { href: "/python", label: "Python Mastery", icon: BrainCircuit },

@@ -1,4 +1,4 @@
-import { LessonView } from "@/components/course/lesson-view";
+import { redirect } from "next/navigation";
 
 export default async function SqlLessonPage({
   params,
@@ -6,5 +6,5 @@ export default async function SqlLessonPage({
   params: Promise<{ lessonId: string }>;
 }) {
   const { lessonId } = await params;
-  return <LessonView courseSlug="sql" lessonId={lessonId} />;
+  redirect(`/materials/sql/${lessonId}`);
 }

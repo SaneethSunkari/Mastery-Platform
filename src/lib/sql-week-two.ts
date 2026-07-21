@@ -2,7 +2,7 @@ import { SqlTaskDefinition } from "@/lib/types";
 
 export const sqlWeekTwoId = "sql-week-02";
 
-export const sqlWeekTwoTasks: SqlTaskDefinition[] = [
+const sqlWeekTwoBaseTasks: SqlTaskDefinition[] = [
   {
     id: "sql-week-02-task-01",
     weekId: sqlWeekTwoId,
@@ -236,6 +236,233 @@ export const sqlWeekTwoTasks: SqlTaskDefinition[] = [
     solutionSql: "SELECT order_id, status, amount, payment_method\nFROM orders\nWHERE status IN ('paid', 'pending')\n  AND amount >= 75\n  AND payment_method <> 'bank'\nORDER BY amount DESC;",
     orderSensitive: true,
   },
+];
+
+function buildSqlWeekTwoGeneratedTasks(): SqlTaskDefinition[] {
+  const families: Array<(stepNumber: number) => Omit<SqlTaskDefinition, "id" | "weekId" | "stepNumber">> = [
+    (stepNumber) => {
+      const minimum = 50 + (stepNumber % 6) * 40;
+      return {
+        title: `Orders at or above ${minimum} - drill ${stepNumber}`,
+        difficulty: "medium",
+        objective: "Use a numeric predicate with deterministic ordering.",
+        instructions: [
+          `Return orders with amount greater than or equal to ${minimum}.`,
+          "Show `order_id`, `status`, `amount`, and `payment_method`.",
+          "Sort by `amount` descending, then `order_id`.",
+        ],
+        starterSql: "",
+        solutionSql: `SELECT order_id, status, amount, payment_method
+FROM orders
+WHERE amount >= ${minimum}
+ORDER BY amount DESC, order_id;`,
+        orderSensitive: true,
+      };
+    },
+    (stepNumber) => {
+      const statuses = stepNumber % 2 === 0 ? "'paid', 'pending'" : "'paid', 'cancelled'";
+      return {
+        title: `Status set filter ${stepNumber}`,
+        difficulty: "medium",
+        objective: "Use IN to express multi-status business logic.",
+        instructions: [
+          `Return orders where status is in (${statuses}).`,
+          "Show `order_id`, `status`, `amount`, and `order_date`.",
+          "Sort by `order_date`, then `order_id`.",
+        ],
+        starterSql: "",
+        solutionSql: `SELECT order_id, status, amount, order_date
+FROM orders
+WHERE status IN (${statuses})
+ORDER BY order_date, order_id;`,
+        orderSensitive: true,
+      };
+    },
+    (stepNumber) => {
+      const startDay = String(1 + (stepNumber % 12)).padStart(2, "0");
+      const endDay = String(12 + (stepNumber % 10)).padStart(2, "0");
+      return {
+        title: `Date window filter ${stepNumber}`,
+        difficulty: "medium",
+        objective: "Filter rows within an inclusive date window.",
+        instructions: [
+          `Return orders between 2026-04-${startDay} and 2026-04-${endDay}.`,
+          "Show `order_id`, `order_date`, `status`, and `amount`.",
+          "Sort by `order_date`, then `order_id`.",
+        ],
+        starterSql: "",
+        solutionSql: `SELECT order_id, order_date, status, amount
+FROM orders
+WHERE order_date BETWEEN '2026-04-${startDay}' AND '2026-04-${endDay}'
+ORDER BY order_date, order_id;`,
+        orderSensitive: true,
+      };
+    },
+    (stepNumber) => {
+      const countries = stepNumber % 2 === 0 ? "'US', 'Canada'" : "'India', 'UK'";
+      return {
+        title: `Customer country set ${stepNumber}`,
+        difficulty: "medium",
+        objective: "Use IN and boolean predicates on customer rows.",
+        instructions: [
+          `Return active customers whose country is in (${countries}).`,
+          "Show `customer_id`, `customer_name`, `country`, and `is_active`.",
+          "Sort by `country`, then `customer_id`.",
+        ],
+        starterSql: "",
+        solutionSql: `SELECT customer_id, customer_name, country, is_active
+FROM customers
+WHERE is_active = 1
+  AND country IN (${countries})
+ORDER BY country, customer_id;`,
+        orderSensitive: true,
+      };
+    },
+    (stepNumber) => {
+      const method = ["card", "paypal", "upi", "bank"][stepNumber % 4];
+      return {
+        title: `Payment method exclusion ${stepNumber}`,
+        difficulty: "medium",
+        objective: "Use NOT and a payment-method predicate.",
+        instructions: [
+          `Return non-cancelled orders where payment method is not ${method}.`,
+          "Show `order_id`, `status`, `amount`, and `payment_method`.",
+          "Sort by `order_id`.",
+        ],
+        starterSql: "",
+        solutionSql: `SELECT order_id, status, amount, payment_method
+FROM orders
+WHERE status <> 'cancelled'
+  AND payment_method <> '${method}'
+ORDER BY order_id;`,
+        orderSensitive: true,
+      };
+    },
+    (stepNumber) => {
+      const prefix = ["A", "E", "L", "S", "N"][stepNumber % 5];
+      return {
+        title: `Customer name prefix ${prefix} - drill ${stepNumber}`,
+        difficulty: "medium",
+        objective: "Use LIKE while preserving the requested projection.",
+        instructions: [
+          `Return customers whose name starts with ${prefix}.`,
+          "Show `customer_id`, `customer_name`, and `email`.",
+          "Sort by `customer_id`.",
+        ],
+        starterSql: "",
+        solutionSql: `SELECT customer_id, customer_name, email
+FROM customers
+WHERE customer_name LIKE '${prefix}%'
+ORDER BY customer_id;`,
+        orderSensitive: true,
+      };
+    },
+    (stepNumber) => {
+      const low = 40 + (stepNumber % 5) * 30;
+      const high = low + 120;
+      return {
+        title: `Paid amount band ${stepNumber}`,
+        difficulty: "medium",
+        objective: "Combine status and numeric range filters.",
+        instructions: [
+          `Return paid orders with amount between ${low} and ${high}.`,
+          "Show `order_id`, `amount`, and `status`.",
+          "Sort by `amount`, then `order_id`.",
+        ],
+        starterSql: "",
+        solutionSql: `SELECT order_id, amount, status
+FROM orders
+WHERE status = 'paid'
+  AND amount BETWEEN ${low} AND ${high}
+ORDER BY amount, order_id;`,
+        orderSensitive: true,
+      };
+    },
+    (stepNumber) => ({
+      title: `Email data quality check ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use NULL checks to find contact-quality issues.",
+      instructions: [
+        "Return inactive customers or customers with missing email.",
+        "Show `customer_id`, `customer_name`, `email`, and `is_active`.",
+        "Sort by `customer_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT customer_id, customer_name, email, is_active
+FROM customers
+WHERE is_active = 0
+   OR email IS NULL
+ORDER BY customer_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Captured payment quality filter ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Filter payment records with exact status and null refund logic.",
+      instructions: [
+        "Return captured payments with no refund amount.",
+        "Show `payment_id`, `order_id`, `payment_status`, and `payment_amount`.",
+        "Sort by `payment_amount` descending.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT payment_id, order_id, payment_status, payment_amount
+FROM payments
+WHERE payment_status = 'captured'
+  AND refund_amount IS NULL
+ORDER BY payment_amount DESC;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Shipment exception filter ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use compound shipment-status logic.",
+      instructions: [
+        "Return shipments that are not delivered or do not have a delivered date.",
+        "Show `shipment_id`, `order_id`, `shipment_status`, and `delivered_date`.",
+        "Sort by `shipment_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT shipment_id, order_id, shipment_status, delivered_date
+FROM shipments
+WHERE shipment_status <> 'delivered'
+   OR delivered_date IS NULL
+ORDER BY shipment_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Event severity and batch filter ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Combine NULL checks, text filters, and numeric thresholds.",
+      instructions: [
+        "Return high or medium events with payload size at least 100 or missing batch id.",
+        "Show `event_id`, `source_system`, `severity`, `payload_size`, and `batch_id`.",
+        "Sort by `severity`, then `event_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT event_id, source_system, severity, payload_size, batch_id
+FROM events
+WHERE severity IN ('high', 'medium')
+  AND (payload_size >= 100 OR batch_id IS NULL)
+ORDER BY severity, event_id;`,
+      orderSensitive: true,
+    }),
+  ];
+
+  return Array.from({ length: 110 }, (_, index) => {
+    const stepNumber = index + 16;
+    const task = families[index % families.length](stepNumber);
+    return {
+      id: `sql-week-02-task-${String(stepNumber).padStart(3, "0")}`,
+      weekId: sqlWeekTwoId,
+      stepNumber,
+      ...task,
+    };
+  });
+}
+
+export const sqlWeekTwoTasks: SqlTaskDefinition[] = [
+  ...sqlWeekTwoBaseTasks,
+  ...buildSqlWeekTwoGeneratedTasks(),
 ];
 
 export const sqlWeekTwoUnlockMessage =

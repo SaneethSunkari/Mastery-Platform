@@ -8,6 +8,8 @@ import {
   TopicMasteryRecord,
   WeekSeed,
 } from "@/lib/types";
+import { pythonWeekOneGuidedLessons } from "@/lib/python-week-one";
+import { pysparkWeekOneGuidedLessons } from "@/lib/pyspark-week-one";
 
 const isoNow = "2026-07-10T08:30:00.000Z";
 
@@ -31,9 +33,9 @@ export const courses: CourseSeed[] = [
     name: "SQL Mastery",
     tagline: "Query design, analytics, performance, and production SQL.",
     description:
-      "A ruthless 16-week path from relational fundamentals to production debugging, data modeling, and interview-grade SQL.",
+      "A ruthless 24-week path from relational fundamentals to production debugging, warehouse design, and interview-grade SQL.",
     accent: "amber",
-    durationWeeks: 16,
+    durationWeeks: 24,
     estimatedMinutesPerDay: 90,
   }),
   buildRecord("course-python", {
@@ -41,9 +43,9 @@ export const courses: CourseSeed[] = [
     name: "Python Mastery",
     tagline: "Production Python for automation, data engineering, and interviews.",
     description:
-      "A 16-week climb from Python fundamentals to ETL systems, testing, performance, and production-quality engineering habits.",
+      "A 24-week climb from Python fundamentals to ETL systems, orchestration support code, testing, performance, and production-quality engineering habits.",
     accent: "teal",
-    durationWeeks: 16,
+    durationWeeks: 24,
     estimatedMinutesPerDay: 90,
   }),
   buildRecord("course-pyspark", {
@@ -51,9 +53,9 @@ export const courses: CourseSeed[] = [
     name: "PySpark Mastery",
     tagline: "Distributed data engineering with Spark, DataFrames, and pipeline performance.",
     description:
-      "A scale-focused path through Spark fundamentals, PySpark transformations, batch jobs, tuning, and production pipeline debugging.",
+      "A scale-focused 24-week path through Spark fundamentals, PySpark transformations, Delta architecture, streaming, and production pipeline debugging.",
     accent: "sky",
-    durationWeeks: 16,
+    durationWeeks: 24,
     estimatedMinutesPerDay: 75,
   }),
 ];
@@ -899,6 +901,417 @@ const sqlWeeksInput: WeekInput[] = [
   },
 ];
 
+const sqlWeeksExtension: WeekInput[] = [
+  {
+    monthNumber: 5,
+    weekNumber: 17,
+    levelNumber: 17,
+    title: "Incremental Warehouse SQL",
+    theme: "Good batch SQL knows what changed and why.",
+    objectives: [
+      "Design incremental filters that are replayable and auditable.",
+      "Separate source-watermark logic from downstream business logic.",
+      "Validate inserts, updates, and late-arriving records with SQL checks.",
+    ],
+    topics: ["incremental loads", "watermarks", "late-arriving data", "merge logic", "reconciliation"],
+    guidedLessons: [
+      {
+        title: "Watermarks and Safe Re-runs",
+        summary: "Track what changed without making backfills dangerous or opaque.",
+        estimatedMinutes: 35,
+        tags: ["incremental", "watermarks"],
+      },
+      {
+        title: "Late Data and Replay Windows",
+        summary: "Handle late-arriving rows deliberately instead of hoping timestamps line up.",
+        estimatedMinutes: 35,
+        tags: ["late-data", "batch"],
+      },
+      {
+        title: "Reconciliation After Incremental Loads",
+        summary: "Prove the target is correct after an insert-or-update style batch.",
+        estimatedMinutes: 35,
+        tags: ["reconciliation", "validation"],
+      },
+    ],
+    practice: [
+      "Write high-watermark filters for orders, invoices, and CDC-style snapshots.",
+      "Detect target gaps after a late-arriving replay.",
+      "Compare source and target counts with duplicate-aware checks.",
+    ],
+    debugging: "An incremental load missed records because the filter used updated_at > max(updated_at). Repair the replay window.",
+    businessCase: "The warehouse must load subscription changes hourly without missing late updates or duplicating history.",
+    interviewPrompts: [
+      "Why is a strict greater-than watermark often unsafe?",
+      "How do you validate an incremental batch beyond row counts?",
+    ],
+    assessment: "Design an incremental load query pack with watermark logic, replay handling, and reconciliation checks.",
+    project: "Build the SQL layer for an hourly subscription-change pipeline with backfill-safe validation.",
+    revision: [
+      "Review the smallest safe replay window for the batch.",
+      "Redo one reconciliation problem from scratch.",
+    ],
+    masteryCheckpoint: "You can explain exactly why a batch is incremental, replayable, and safe to rerun.",
+  },
+  {
+    monthNumber: 5,
+    weekNumber: 18,
+    levelNumber: 18,
+    title: "SQL Data Quality and Contracts",
+    theme: "Warehouse trust is earned one explicit guarantee at a time.",
+    objectives: [
+      "Write contract-style checks for uniqueness, completeness, freshness, and validity.",
+      "Turn vague quality expectations into executable SQL assertions.",
+      "Build failure-focused diagnostics that point to the root cause quickly.",
+    ],
+    topics: ["data contracts", "uniqueness", "freshness", "null audits", "referential checks", "quality gates"],
+    guidedLessons: [
+      {
+        title: "Contract Checks That Matter",
+        summary: "Move from generic row counts to explicit promises about shape, keys, and freshness.",
+        estimatedMinutes: 35,
+        tags: ["contracts", "quality"],
+      },
+      {
+        title: "Diagnostic SQL for Broken Loads",
+        summary: "Write queries that tell you why a check failed, not just that it failed.",
+        estimatedMinutes: 35,
+        tags: ["diagnostics", "debugging"],
+      },
+      {
+        title: "Quality Gates in Daily Operations",
+        summary: "Choose which failures should block the pipeline and which should raise alerts.",
+        estimatedMinutes: 30,
+        tags: ["quality-gates", "operations"],
+      },
+    ],
+    practice: [
+      "Write duplicate-key, null, and orphan-record checks.",
+      "Build freshness checks for snapshot and event tables.",
+      "Classify failures into block, warn, and monitor-only tiers.",
+    ],
+    debugging: "A model passes row counts but still breaks downstream because customer_id is no longer unique. Design the missing contract.",
+    businessCase: "A finance mart must stop shipping when revenue facts or customer keys violate contract guarantees.",
+    interviewPrompts: [
+      "What is the minimum contract set for a fact table?",
+      "How do you make a failed quality check actionable?",
+    ],
+    assessment: "Author a SQL quality suite and explain what each assertion protects.",
+    project: "Create a contract pack for a revenue mart with blocking and non-blocking rules.",
+    revision: [
+      "Review one weak check and rewrite it as a sharper contract.",
+      "Practice explaining why freshness is different from completeness.",
+    ],
+    masteryCheckpoint: "You stop saying data quality matters and start encoding exactly what must be true.",
+  },
+  {
+    monthNumber: 5,
+    weekNumber: 19,
+    levelNumber: 19,
+    title: "Cost-Aware Warehouse SQL",
+    theme: "Strong SQL engineers reduce work before the expensive step.",
+    objectives: [
+      "Reason about warehouse cost using scan volume, joins, shuffles, and intermediate row growth.",
+      "Use partition filters, pre-aggregation, and selective projections deliberately.",
+      "Recognize when a rewrite is cheaper than adding more compute.",
+    ],
+    topics: ["scan cost", "partition filters", "pre-aggregation", "join reduction", "intermediate row growth"],
+    guidedLessons: [
+      {
+        title: "Read Query Cost Like an Engineer",
+        summary: "Use warehouse cost signals to spot waste in filters, joins, and projections.",
+        estimatedMinutes: 35,
+        tags: ["cost", "warehouse"],
+      },
+      {
+        title: "Shrink the Data Early",
+        summary: "Push down filters, pre-aggregate, and trim columns before the expensive join.",
+        estimatedMinutes: 35,
+        tags: ["pre-aggregation", "optimization"],
+      },
+      {
+        title: "Tradeoffs Between Simplicity and Spend",
+        summary: "Know when a clear rewrite beats a clever but costly one-liner.",
+        estimatedMinutes: 30,
+        tags: ["tradeoffs", "cost-awareness"],
+      },
+    ],
+    practice: [
+      "Rewrite warehouse queries to reduce scanned data.",
+      "Compare pre-aggregation versus raw join strategies.",
+      "Explain why one query is cheaper even when results match.",
+    ],
+    debugging: "A dashboard query works but costs 20x more after one extra dimension join. Find the cheapest safe rewrite.",
+    businessCase: "The data team must cut spend on recurring reporting models without degrading trust.",
+    interviewPrompts: [
+      "What is the first thing you look at when a query is expensive?",
+      "Why is pre-aggregation often the right fix?",
+    ],
+    assessment: "Tune a warehouse-style query pack for lower scan cost and defend the tradeoffs.",
+    project: "Refactor a recurring KPI model to reduce warehouse spend while preserving correctness.",
+    revision: [
+      "List three ways to reduce work before a large join.",
+      "Review one costly pattern you now avoid automatically.",
+    ],
+    masteryCheckpoint: "You can explain not just correctness and speed, but cost.",
+  },
+  {
+    monthNumber: 5,
+    weekNumber: 20,
+    levelNumber: 20,
+    title: "Snapshots, SCDs, and Historical Truth",
+    theme: "History is a product requirement, not an afterthought.",
+    objectives: [
+      "Model snapshots and SCD history without collapsing valid time.",
+      "Choose between overwrite, append, snapshot, and Type 2 approaches deliberately.",
+      "Write point-in-time analysis queries over historical state safely.",
+    ],
+    topics: ["snapshots", "SCD Type 2", "historical truth", "effective dating", "point-in-time analysis"],
+    guidedLessons: [
+      {
+        title: "Snapshot Versus Event Thinking",
+        summary: "Choose the historical model that matches the business question and replay needs.",
+        estimatedMinutes: 35,
+        tags: ["snapshots", "history"],
+      },
+      {
+        title: "Type 2 Without Corrupting Timelines",
+        summary: "Track changing attributes with explicit validity windows and safe joins.",
+        estimatedMinutes: 35,
+        tags: ["scd2", "effective-dating"],
+      },
+      {
+        title: "Point-in-Time Reporting",
+        summary: "Ask what was true then, not what happens to be true now.",
+        estimatedMinutes: 30,
+        tags: ["pit", "analytics"],
+      },
+    ],
+    practice: [
+      "Design snapshot tables for subscriptions and account status.",
+      "Write Type 2 join conditions for facts and dimensions.",
+      "Compare today's state reporting versus historical truth reporting.",
+    ],
+    debugging: "A churn report uses the latest customer segment instead of the segment at churn time. Repair the historical join.",
+    businessCase: "Leadership wants historical MRR, churn, and plan-tier reporting that survives retroactive profile changes.",
+    interviewPrompts: [
+      "When would you choose a snapshot over an event fact?",
+      "How do you keep point-in-time joins correct?",
+    ],
+    assessment: "Design historical-truth SQL for a subscription business and defend the model choices.",
+    project: "Build a history-preserving warehouse slice for plan movement and churn reporting.",
+    revision: [
+      "Review why current-state joins break historical analysis.",
+      "Practice one point-in-time query from scratch.",
+    ],
+    masteryCheckpoint: "You protect time-based truth instead of accidentally rewriting history.",
+  },
+  {
+    monthNumber: 6,
+    weekNumber: 21,
+    levelNumber: 21,
+    title: "Observability and Incident SQL",
+    theme: "On-call SQL is about narrowing the blast radius fast.",
+    objectives: [
+      "Use SQL to investigate freshness, completeness, and metric anomalies under pressure.",
+      "Build incident triage queries that isolate the break quickly.",
+      "Separate symptom queries from root-cause queries in incident response.",
+    ],
+    topics: ["observability", "incident triage", "anomaly checks", "freshness", "blast radius"],
+    guidedLessons: [
+      {
+        title: "Freshness and Delay Triage",
+        summary: "Diagnose where a pipeline stopped moving before debating the fix.",
+        estimatedMinutes: 35,
+        tags: ["observability", "freshness"],
+      },
+      {
+        title: "Metric Drift Investigation",
+        summary: "Use comparison queries to isolate the first broken stage and first broken segment.",
+        estimatedMinutes: 35,
+        tags: ["incidents", "metrics"],
+      },
+      {
+        title: "Incident Notes Another Engineer Can Use",
+        summary: "Translate raw debugging into a readable handoff with evidence and next steps.",
+        estimatedMinutes: 30,
+        tags: ["handoff", "operations"],
+      },
+    ],
+    practice: [
+      "Trace a freshness failure through staging, mart, and dashboard layers.",
+      "Compare metric drift across dates, segments, and transformations.",
+      "Write incident-style queries with clear comments and expected checkpoints.",
+    ],
+    debugging: "Yesterday's revenue looks fine in staging but wrong in the final mart. Narrow the first broken transformation.",
+    businessCase: "A critical executive dashboard is wrong two hours before business review.",
+    interviewPrompts: [
+      "How do you debug a metric discrepancy systematically?",
+      "What query would you write first in a freshness incident?",
+    ],
+    assessment: "Work through an incident packet and show the triage sequence you would run in SQL.",
+    project: "Create an incident SQL playbook for freshness, drift, and duplicate failures.",
+    revision: [
+      "Review the order of your incident checks.",
+      "Practice writing the first three triage queries without notes.",
+    ],
+    masteryCheckpoint: "You can use SQL as an operational debugging tool, not only as a reporting language.",
+  },
+  {
+    monthNumber: 6,
+    weekNumber: 22,
+    levelNumber: 22,
+    title: "Contracts, SLAs, and Delivery Defenses",
+    theme: "Senior engineers define what good service looks like before it breaks.",
+    objectives: [
+      "Translate data expectations into SLAs, checks, and service-facing definitions.",
+      "Align warehouse outputs with freshness and completeness promises.",
+      "Write SQL evidence that supports incident communication and recovery decisions.",
+    ],
+    topics: ["SLAs", "freshness promises", "data contracts", "recovery evidence", "stakeholder communication"],
+    guidedLessons: [
+      {
+        title: "From Query to Service Promise",
+        summary: "Connect data outputs to explicit freshness and correctness commitments.",
+        estimatedMinutes: 35,
+        tags: ["sla", "contracts"],
+      },
+      {
+        title: "Evidence for Recovery Decisions",
+        summary: "Use SQL to decide whether to rerun, backfill, or communicate a partial outage.",
+        estimatedMinutes: 35,
+        tags: ["recovery", "operations"],
+      },
+      {
+        title: "Defend the Decision Path",
+        summary: "Explain why the team chose one recovery action over another with concrete evidence.",
+        estimatedMinutes: 30,
+        tags: ["defense", "leadership"],
+      },
+    ],
+    practice: [
+      "Map SQL checks to freshness and completeness promises.",
+      "Choose between rerun, partial publish, and hold strategies.",
+      "Write a stakeholder-ready summary from technical evidence.",
+    ],
+    debugging: "A mart is late but not wrong. Decide whether the breach is publishable, blockable, or recoverable and justify it.",
+    businessCase: "The data team must explain a missed SLA without hiding uncertainty or overreacting.",
+    interviewPrompts: [
+      "How do you connect technical checks to a business SLA?",
+      "What evidence would make you rerun versus hold output?",
+    ],
+    assessment: "Produce a service-defense packet with checks, evidence, and an explicit recommendation.",
+    project: "Document SLA-aligned SQL checks for a business-critical mart.",
+    revision: [
+      "Review one scenario where correctness and freshness trade off.",
+      "Practice a short incident-defense explanation.",
+    ],
+    masteryCheckpoint: "You think in service guarantees and recovery evidence, not just raw query output.",
+  },
+  {
+    monthNumber: 6,
+    weekNumber: 23,
+    levelNumber: 23,
+    title: "Architecture Reviews and Cross-System Reasoning",
+    theme: "Senior SQL work sits inside a bigger system.",
+    objectives: [
+      "Trace data flow across source systems, staging, marts, and dashboards.",
+      "Evaluate whether a problem belongs in SQL, upstream modeling, or orchestration.",
+      "Defend warehouse tradeoffs in system-design conversations.",
+    ],
+    topics: ["architecture review", "data flow", "warehouse layers", "tradeoffs", "system design"],
+    guidedLessons: [
+      {
+        title: "Where SQL Fits in the Pipeline",
+        summary: "Decide whether the fix belongs in the query, model, source contract, or scheduler.",
+        estimatedMinutes: 35,
+        tags: ["architecture", "ownership"],
+      },
+      {
+        title: "Warehouse Layering Decisions",
+        summary: "Separate raw, clean, modeled, and serving responsibilities with intent.",
+        estimatedMinutes: 35,
+        tags: ["layering", "design"],
+      },
+      {
+        title: "Tradeoff Defense",
+        summary: "Practice explaining why one architecture is better for cost, trust, and maintenance.",
+        estimatedMinutes: 30,
+        tags: ["tradeoffs", "review"],
+      },
+    ],
+    practice: [
+      "Review warehouse-layer designs and identify misplaced logic.",
+      "Choose where validation should live in a multi-stage pipeline.",
+      "Explain a modeling tradeoff to a mixed technical audience.",
+    ],
+    debugging: "A dashboard bug is caused by logic duplicated in both SQL and Python. Identify the cleaner ownership boundary.",
+    businessCase: "A platform team wants a clear boundary between raw ingestion, warehouse modeling, and downstream consumption.",
+    interviewPrompts: [
+      "Where should business logic live in a data platform?",
+      "How do you know when SQL is the wrong place for a fix?",
+    ],
+    assessment: "Review a data-platform architecture and defend better placement for logic, checks, and ownership.",
+    project: "Create an architecture review document for a layered warehouse pipeline.",
+    revision: [
+      "Review one case where moving logic upstream simplified the SQL.",
+      "Practice describing raw versus modeled versus serving layers.",
+    ],
+    masteryCheckpoint: "You can place SQL decisions in the context of the whole data platform.",
+  },
+  {
+    monthNumber: 6,
+    weekNumber: 24,
+    levelNumber: 24,
+    title: "Final SQL Capstone and Defense",
+    theme: "Finish by proving correctness, speed, and engineering judgment together.",
+    objectives: [
+      "Deliver a full SQL solution with modeling, validation, performance, and incident reasoning.",
+      "Explain assumptions, edge cases, and alternative designs under pressure.",
+      "Defend production-readiness with evidence rather than confidence alone.",
+    ],
+    topics: ["capstone", "timed assessment", "defense", "query review", "incident analysis", "performance"],
+    guidedLessons: [
+      {
+        title: "Timed SQL Assessment",
+        summary: "Solve a realistic analytics and validation problem under clear time pressure.",
+        estimatedMinutes: 40,
+        tags: ["timed", "assessment"],
+      },
+      {
+        title: "Code Review and Optimization Defense",
+        summary: "Explain why the solution is correct, maintainable, and performant enough.",
+        estimatedMinutes: 35,
+        tags: ["review", "optimization"],
+      },
+      {
+        title: "Incident and Architecture Defense",
+        summary: "Handle a final debugging and system-fit conversation like a senior teammate.",
+        estimatedMinutes: 35,
+        tags: ["incident", "defense"],
+      },
+    ],
+    practice: [
+      "Complete a timed SQL round with explicit assumptions.",
+      "Rewrite one piece of the solution after peer-style review feedback.",
+      "Defend the final design and incident response choices aloud.",
+    ],
+    debugging: "The final solution is correct but one downstream consumer still breaks. Identify the missing contract or output assumption.",
+    businessCase: "Ship a final warehouse-ready SQL deliverable for a business-critical analytics use case.",
+    interviewPrompts: [
+      "What is the first assumption you would clarify before writing the solution?",
+      "How would you defend the final query design to a reviewer?",
+    ],
+    assessment: "Complete the capstone pack: timed query, validation suite, performance notes, and architecture defense.",
+    project: "Final SQL capstone with design notes, checks, optimization commentary, and incident response reasoning.",
+    revision: [
+      "Review your final recurring mistake pattern before the defense.",
+      "Re-run one hard capstone question from a blank editor.",
+    ],
+    masteryCheckpoint: "You can ship, explain, and defend SQL work at a strong data-engineering level.",
+  },
+];
+
 const pythonWeeksInput: WeekInput[] = [
   {
     monthNumber: 1,
@@ -912,26 +1325,7 @@ const pythonWeeksInput: WeekInput[] = [
       "Write tiny programs that are explicit and readable.",
     ],
     topics: ["variables", "types", "operators", "input", "output", "casting"],
-    guidedLessons: [
-      {
-        title: "How Python Evaluates Code",
-        summary: "Understand values, expressions, assignment, and why mutability matters later.",
-        estimatedMinutes: 35,
-        tags: ["foundations", "mental-model"],
-      },
-      {
-        title: "Basic I/O with Discipline",
-        summary: "Read input, print output, and convert types without guessing what Python will do.",
-        estimatedMinutes: 30,
-        tags: ["io", "types"],
-      },
-      {
-        title: "Readable First Programs",
-        summary: "Name things clearly and avoid beginner code smells from day one.",
-        estimatedMinutes: 30,
-        tags: ["style", "foundations"],
-      },
-    ],
+    guidedLessons: pythonWeekOneGuidedLessons,
     practice: [
       "Build small scripts for price calculations, status labels, and unit conversions.",
       "Classify expressions by resulting type and value.",
@@ -1734,6 +2128,417 @@ const pythonWeeksInput: WeekInput[] = [
   },
 ];
 
+const pythonWeeksExtension: WeekInput[] = [
+  {
+    monthNumber: 5,
+    weekNumber: 17,
+    levelNumber: 17,
+    title: "Pipeline Architecture and Contracts",
+    theme: "Good Python pipelines encode boundaries, not just transformations.",
+    objectives: [
+      "Separate extract, validate, transform, and load responsibilities clearly.",
+      "Represent input and output contracts explicitly in code.",
+      "Make pipeline stages testable and replaceable without copy-paste glue.",
+    ],
+    topics: ["pipeline stages", "contracts", "interfaces", "validation boundaries", "modularity"],
+    guidedLessons: [
+      {
+        title: "Stage Boundaries That Stay Clear",
+        summary: "Keep extraction, validation, transformation, and publishing responsibilities from bleeding together.",
+        estimatedMinutes: 35,
+        tags: ["architecture", "pipeline"],
+      },
+      {
+        title: "Contracts in Code",
+        summary: "Describe what comes in and what must go out before coding the middle.",
+        estimatedMinutes: 35,
+        tags: ["contracts", "interfaces"],
+      },
+      {
+        title: "Refactoring Glue Into Durable Modules",
+        summary: "Move from one-off scripts to reusable pipeline structure without overengineering.",
+        estimatedMinutes: 30,
+        tags: ["refactor", "modularity"],
+      },
+    ],
+    practice: [
+      "Split a script into staged pipeline functions.",
+      "Define input and output contracts for an ETL job.",
+      "Refactor mixed validation-and-transform code into clearer boundaries.",
+    ],
+    debugging: "A job both parses files and sends notifications in the same function. Redesign the boundaries.",
+    businessCase: "A daily batch job must stay maintainable as new sources and outputs are added.",
+    interviewPrompts: [
+      "How do you decide pipeline stage boundaries?",
+      "What belongs in a contract versus an implementation detail?",
+    ],
+    assessment: "Refactor an ETL script into a contract-driven staged design with explicit interfaces.",
+    project: "Design the Python architecture for a daily ingestion and validation pipeline.",
+    revision: [
+      "Review one place where mixed responsibilities hid a bug.",
+      "Practice naming the input and output contract first.",
+    ],
+    masteryCheckpoint: "You can organize Python pipeline code so another engineer can extend it safely.",
+  },
+  {
+    monthNumber: 5,
+    weekNumber: 18,
+    levelNumber: 18,
+    title: "Orchestration Support Code",
+    theme: "Batch jobs need control flow outside the transform itself.",
+    objectives: [
+      "Write job wrappers with retries, checkpoints, and idempotent rerun behavior.",
+      "Track batch metadata, run state, and failure context explicitly.",
+      "Support scheduler-driven execution without burying business logic in control code.",
+    ],
+    topics: ["job wrappers", "retries", "idempotency", "run metadata", "checkpoints"],
+    guidedLessons: [
+      {
+        title: "Job Runners and Entry Points",
+        summary: "Build a clean shell around the business transform instead of a tangled main function.",
+        estimatedMinutes: 35,
+        tags: ["orchestration", "entrypoints"],
+      },
+      {
+        title: "Retry and Idempotency Behavior",
+        summary: "Retry only when safe and prove reruns do not duplicate the side effect.",
+        estimatedMinutes: 35,
+        tags: ["retries", "idempotency"],
+      },
+      {
+        title: "Run State and Failure Evidence",
+        summary: "Persist enough context to explain what happened after the scheduler page arrives.",
+        estimatedMinutes: 30,
+        tags: ["metadata", "operations"],
+      },
+    ],
+    practice: [
+      "Wrap a transform in a scheduler-friendly entry point.",
+      "Add rerun-safe checkpoint logic to a batch script.",
+      "Record run metadata and failure summaries cleanly.",
+    ],
+    debugging: "A retried job duplicated output because the side effect was not idempotent. Repair the control flow.",
+    businessCase: "The team needs reliable daily jobs that can be retried and audited from logs.",
+    interviewPrompts: [
+      "What makes a batch job idempotent?",
+      "What run metadata is essential during an incident?",
+    ],
+    assessment: "Submit a job-runner skeleton with retries, metadata, and rerun-safe behavior.",
+    project: "Build orchestration support code for a scheduled Python ETL job.",
+    revision: [
+      "Review the difference between retry-safe and replay-safe.",
+      "Practice explaining how you would avoid duplicate side effects.",
+    ],
+    masteryCheckpoint: "You think beyond the transform and into how the job lives in production.",
+  },
+  {
+    monthNumber: 5,
+    weekNumber: 19,
+    levelNumber: 19,
+    title: "Concurrency and I/O Throughput",
+    theme: "Use concurrency when it simplifies waiting, not when it hides design problems.",
+    objectives: [
+      "Choose between sync, threads, asyncio, and process-based work with intent.",
+      "Improve I/O-heavy workflows without corrupting state or readability.",
+      "Protect shared resources and error handling when work runs concurrently.",
+    ],
+    topics: ["asyncio", "threading", "I/O concurrency", "shared state", "timeouts", "backpressure"],
+    guidedLessons: [
+      {
+        title: "Concurrency Model Selection",
+        summary: "Match the tool to the bottleneck instead of defaulting to async everywhere.",
+        estimatedMinutes: 35,
+        tags: ["concurrency", "selection"],
+      },
+      {
+        title: "Concurrent API and File Work",
+        summary: "Handle waiting work efficiently while keeping retries and errors visible.",
+        estimatedMinutes: 35,
+        tags: ["asyncio", "io"],
+      },
+      {
+        title: "Shared State and Safety",
+        summary: "Keep concurrent code correct when failures and partial progress appear.",
+        estimatedMinutes: 30,
+        tags: ["safety", "state"],
+      },
+    ],
+    practice: [
+      "Parallelize paginated API ingestion safely.",
+      "Apply timeouts and retries to concurrent fetches.",
+      "Compare a sequential and concurrent file-or-network workflow.",
+    ],
+    debugging: "Concurrent ingestion looks faster but silently drops errors from some tasks. Fix the orchestration.",
+    businessCase: "A pipeline must fetch many remote pages quickly without losing failure visibility.",
+    interviewPrompts: [
+      "When is asyncio the wrong tool?",
+      "How do you keep concurrent failures from disappearing?",
+    ],
+    assessment: "Build a small concurrent ingestion utility with clear timeout and error behavior.",
+    project: "Create an I/O-heavy ingestion workflow that improves throughput safely.",
+    revision: [
+      "Review one concurrency bug caused by hidden shared state.",
+      "Practice describing your concurrency choice from the bottleneck first.",
+    ],
+    masteryCheckpoint: "You can improve throughput without turning the code into an untestable maze.",
+  },
+  {
+    monthNumber: 5,
+    weekNumber: 20,
+    levelNumber: 20,
+    title: "Performance, Memory, and Profiling",
+    theme: "Optimize with measurements, not hunches.",
+    objectives: [
+      "Profile Python code for CPU time, memory pressure, and wasteful allocations.",
+      "Choose data structures and iteration patterns that fit the workload.",
+      "Improve pipeline speed while preserving readability and correctness.",
+    ],
+    topics: ["profiling", "memory behavior", "allocation cost", "streaming", "pandas memory", "optimization"],
+    guidedLessons: [
+      {
+        title: "Profile Before You Touch the Code",
+        summary: "Use timings and memory signals to prove where the bottleneck lives.",
+        estimatedMinutes: 35,
+        tags: ["profiling", "performance"],
+      },
+      {
+        title: "Memory-Aware Transformations",
+        summary: "Stream, chunk, or rewrite data handling before reaching for bigger machines.",
+        estimatedMinutes: 35,
+        tags: ["memory", "streaming"],
+      },
+      {
+        title: "Optimization That Stays Readable",
+        summary: "Keep the code maintainable after the speed fix lands.",
+        estimatedMinutes: 30,
+        tags: ["readability", "optimization"],
+      },
+    ],
+    practice: [
+      "Profile a slow batch transform and identify the hot path.",
+      "Rewrite list-heavy logic into streaming or chunked form.",
+      "Measure before-and-after memory use for one ETL step.",
+    ],
+    debugging: "A pipeline runs out of memory because it materializes every intermediate list. Reduce the peak footprint.",
+    businessCase: "A growing batch job must stay inside a fixed memory budget on shared infrastructure.",
+    interviewPrompts: [
+      "How do you profile a slow Python job?",
+      "When should you stream rather than materialize data?",
+    ],
+    assessment: "Profile and optimize a realistic transformation job with evidence-based notes.",
+    project: "Take a Python ETL flow from fragile memory behavior to measurable stability.",
+    revision: [
+      "Review the actual bottleneck before the fix you chose.",
+      "Practice describing memory pressure in plain operational terms.",
+    ],
+    masteryCheckpoint: "You diagnose Python performance with measurements and targeted rewrites.",
+  },
+  {
+    monthNumber: 6,
+    weekNumber: 21,
+    levelNumber: 21,
+    title: "Storage, Secrets, and Environment Boundaries",
+    theme: "Production code survives the move from laptop to platform.",
+    objectives: [
+      "Work with object storage, local files, and environment-provided secrets safely.",
+      "Separate configuration from code without making setup mysterious.",
+      "Prepare Python jobs for container or scheduler deployment boundaries.",
+    ],
+    topics: ["object storage", "secrets", "environment variables", "deployment boundaries", "configuration"],
+    guidedLessons: [
+      {
+        title: "Configuration Without Guesswork",
+        summary: "Keep runtime settings explicit and discoverable instead of hidden in code.",
+        estimatedMinutes: 35,
+        tags: ["config", "env"],
+      },
+      {
+        title: "Secrets and Safe Access",
+        summary: "Handle credentials and tokens without leaking them into logs or source.",
+        estimatedMinutes: 35,
+        tags: ["secrets", "security"],
+      },
+      {
+        title: "Storage Interfaces That Travel Well",
+        summary: "Write code that can move from local file paths to platform-managed storage cleanly.",
+        estimatedMinutes: 30,
+        tags: ["storage", "deployment"],
+      },
+    ],
+    practice: [
+      "Move hardcoded config into environment-driven settings.",
+      "Design a storage adapter boundary for local and remote objects.",
+      "Audit a script for secret-handling risks.",
+    ],
+    debugging: "A job works locally but fails in deployment because config, paths, and secrets are coupled. Untangle it.",
+    businessCase: "A Python ETL tool must run locally for development and in a scheduled environment for production.",
+    interviewPrompts: [
+      "How do you keep configuration explicit without exposing secrets?",
+      "What makes code portable across environments?",
+    ],
+    assessment: "Refactor a job for deployment-safe config, storage, and secret handling.",
+    project: "Prepare a Python pipeline for production-like deployment boundaries.",
+    revision: [
+      "Review one config value that should never live in source.",
+      "Practice describing a storage boundary cleanly.",
+    ],
+    masteryCheckpoint: "You can move Python jobs across environments without rewriting the logic core.",
+  },
+  {
+    monthNumber: 6,
+    weekNumber: 22,
+    levelNumber: 22,
+    title: "Observability, Data Quality, and Recovery",
+    theme: "Senior Python data work includes what happens after the happy path.",
+    objectives: [
+      "Emit logs, metrics, and failure evidence another engineer can act on.",
+      "Build data-quality checks into Python pipeline stages deliberately.",
+      "Choose recovery and rerun behavior from concrete evidence.",
+    ],
+    topics: ["observability", "data quality", "metrics", "recovery", "alerts", "failure evidence"],
+    guidedLessons: [
+      {
+        title: "Operational Signals That Explain the Job",
+        summary: "Log what matters so incidents are traceable without reading the code live.",
+        estimatedMinutes: 35,
+        tags: ["logs", "observability"],
+      },
+      {
+        title: "Python Quality Checks in the Flow",
+        summary: "Validate file rows, API payloads, and transformed records before publishing output.",
+        estimatedMinutes: 35,
+        tags: ["quality", "validation"],
+      },
+      {
+        title: "Recovery Decisions From Evidence",
+        summary: "Use runtime context to decide whether to retry, rerun, quarantine, or fail hard.",
+        estimatedMinutes: 30,
+        tags: ["recovery", "operations"],
+      },
+    ],
+    practice: [
+      "Add job-level logs and metrics around a transformation flow.",
+      "Fail fast on malformed data with useful diagnostics.",
+      "Write incident notes from a simulated pipeline failure.",
+    ],
+    debugging: "A batch technically fails correctly but gives no clue which input file caused the break. Improve the signals.",
+    businessCase: "An on-call engineer needs enough Python-level evidence to restore a failing pipeline quickly.",
+    interviewPrompts: [
+      "What do you log in a data pipeline?",
+      "How do you keep data-quality failures actionable?",
+    ],
+    assessment: "Submit an observable Python pipeline stage with quality checks and explicit recovery choices.",
+    project: "Instrument a batch ETL job with logs, checks, and recovery behavior.",
+    revision: [
+      "Review one vague log line and rewrite it with better context.",
+      "Practice deciding between retry and quarantine.",
+    ],
+    masteryCheckpoint: "You code for the operator who has to debug the job tomorrow.",
+  },
+  {
+    monthNumber: 6,
+    weekNumber: 23,
+    levelNumber: 23,
+    title: "System Design and Code Review for Data Python",
+    theme: "Senior Python skill includes knowing what not to build.",
+    objectives: [
+      "Review data-pipeline code for correctness, maintainability, and operational safety.",
+      "Map Python components to orchestration, storage, and warehouse layers.",
+      "Explain design tradeoffs with clarity during architecture conversations.",
+    ],
+    topics: ["code review", "system design", "component boundaries", "tradeoffs", "maintainability"],
+    guidedLessons: [
+      {
+        title: "Reviewing a Data Python Codebase",
+        summary: "Look for brittle boundaries, hidden side effects, and missing operational safeguards.",
+        estimatedMinutes: 35,
+        tags: ["review", "quality"],
+      },
+      {
+        title: "Where Python Should Own the Logic",
+        summary: "Choose whether the rule belongs in Python, SQL, Spark, or orchestration.",
+        estimatedMinutes: 35,
+        tags: ["architecture", "ownership"],
+      },
+      {
+        title: "Tradeoff Defense for Real Teams",
+        summary: "Practice defending simple, durable designs over flashy but costly ones.",
+        estimatedMinutes: 30,
+        tags: ["tradeoffs", "leadership"],
+      },
+    ],
+    practice: [
+      "Review a flawed ETL module and list the highest-risk issues.",
+      "Choose the right layer for validation, transformation, and scheduling logic.",
+      "Rewrite a design note so another engineer can challenge it productively.",
+    ],
+    debugging: "A Python service owns SQL, API retries, file parsing, and metrics formatting in one class. Re-slice the design.",
+    businessCase: "A team needs a cleaner boundary between orchestration helpers, transformation logic, and delivery code.",
+    interviewPrompts: [
+      "What makes pipeline Python code reviewable?",
+      "How do you decide whether logic belongs in Python or SQL?",
+    ],
+    assessment: "Produce a code-review memo and architecture recommendation for a realistic data Python module.",
+    project: "Run a design review on a Python ETL system and propose a cleaner target shape.",
+    revision: [
+      "Review one case where moving logic simplified the codebase.",
+      "Practice summarizing tradeoffs in five plain sentences.",
+    ],
+    masteryCheckpoint: "You can review and defend production Python like a strong data engineer teammate.",
+  },
+  {
+    monthNumber: 6,
+    weekNumber: 24,
+    levelNumber: 24,
+    title: "Final Python Capstone and Defense",
+    theme: "Finish by proving your code can run, fail, recover, and be defended.",
+    objectives: [
+      "Deliver a production-style Python pipeline with tests, quality checks, and operational notes.",
+      "Handle timed coding, debugging, and review scenarios with clear reasoning.",
+      "Defend the final architecture, failure handling, and optimization choices.",
+    ],
+    topics: ["capstone", "timed coding", "debugging incident", "code review", "architecture defense", "mock interview"],
+    guidedLessons: [
+      {
+        title: "Timed Pipeline Coding Round",
+        summary: "Write a focused pipeline solution under time pressure without losing structure.",
+        estimatedMinutes: 40,
+        tags: ["timed", "coding"],
+      },
+      {
+        title: "Debugging and Review Defense",
+        summary: "Repair a broken job and explain the fix like a reviewer or interviewer would expect.",
+        estimatedMinutes: 35,
+        tags: ["debugging", "review"],
+      },
+      {
+        title: "Architecture and Production Defense",
+        summary: "Defend the final design, quality gates, and operational strategy end to end.",
+        estimatedMinutes: 35,
+        tags: ["defense", "capstone"],
+      },
+    ],
+    practice: [
+      "Complete a timed Python data-engineering task from a blank editor.",
+      "Fix a broken pipeline under visible constraints.",
+      "Explain the final design and tradeoffs out loud.",
+    ],
+    debugging: "A final pipeline works on sample data but fails under messy real inputs. Patch the missing validation and recovery path.",
+    businessCase: "Deliver the Python portion of a final data-engineering solution another engineer could ship.",
+    interviewPrompts: [
+      "What assumption would you state before writing the pipeline?",
+      "How would you defend the final architecture to a senior reviewer?",
+    ],
+    assessment: "Complete the capstone pack: timed task, debugging fix, tests, review notes, and design defense.",
+    project: "Final Python capstone with production-style pipeline code and operational reasoning.",
+    revision: [
+      "Review your last remaining weak pattern before the defense.",
+      "Redo one hard capstone utility from a blank editor.",
+    ],
+    masteryCheckpoint: "You can build and defend Python pipeline code at a strong data-engineering level.",
+  },
+];
+
 const toWeeks = (courseSlug: CourseSlug, weeksInput: WeekInput[]): WeekSeed[] =>
   weeksInput.map((week) =>
     buildRecord(makeId(courseSlug, "week", String(week.weekNumber).padStart(2, "0")), {
@@ -2191,37 +2996,236 @@ const pysparkPlanInputs = [
     ],
     masteryCheckpoint: "You can place a Spark job inside a larger platform design instead of treating it like an isolated script.",
   },
+] as const;
+
+const pysparkPlanExtensionInputs = [
   {
-    title: "Capstone: Production PySpark Pipeline",
-    theme: "Combine transforms, validation, reliability, and performance thinking in one job.",
+    title: "Lazy Evaluation, DAGs, and Explain Plans",
+    theme: "Spark performance starts with understanding when work really happens.",
     objectives: [
-      "Deliver an end-to-end PySpark pipeline design.",
-      "Explain business grain, data quality, and runtime tradeoffs together.",
-      "Finish with a believable data-engineering Spark foundation.",
+      "Explain lazy evaluation and how transformations become a DAG.",
+      "Distinguish narrow and wide transformations and their shuffle impact.",
+      "Read explain plans to predict expensive stages before running a full job.",
     ],
-    topics: ["capstone", "end-to-end pipeline", "validation", "performance", "production tradeoffs"],
+    topics: ["lazy evaluation", "DAGs", "narrow vs wide", "stages", "tasks", "explain plans"],
     practice: [
-      "Rebuild key transforms without notes.",
-      "Explain the validation and partition strategy out loud.",
-      "Review the pipeline like a production handoff document.",
+      "Classify transformations as narrow or wide.",
+      "Use explain output to predict shuffle-heavy steps.",
+      "Rewrite a pipeline to reduce unnecessary wide stages.",
     ],
-    debugging: "A final capstone pipeline has one logic issue, one data-quality gap, and one runtime risk. Prioritize the fixes.",
-    businessCase: "Deliver a PySpark batch pipeline another data engineer could review, extend, and run with confidence.",
+    debugging: "A Spark job looks simple but triggers more shuffles than expected. Use the plan to explain why.",
+    businessCase: "A batch pipeline must be reviewed for stage cost before it is scheduled at scale.",
     interviewPrompts: [
-      "What tradeoffs did you make in your final PySpark design?",
-      "What would you improve next if this became a production job?",
+      "What does Spark defer until an action runs?",
+      "Why does a wide transformation matter operationally?",
     ],
-    assessment: "Submit a capstone Spark pipeline plan with transforms, checks, and operational reasoning.",
-    project: "Capstone: production-style PySpark batch pipeline with validation, partition strategy, and tuning notes.",
+    assessment: "Analyze a pipeline DAG, identify expensive stages, and defend a lower-shuffle rewrite.",
+    project: "Add plan-reading notes and stage-risk analysis to a production-style Spark transform.",
     revision: [
-      "Review your biggest Spark weakness from the course.",
-      "Redo one high-value transformation or audit from scratch.",
+      "Review which operations cause wide dependencies.",
+      "Practice reading one explain plan without executing the full job.",
     ],
-    masteryCheckpoint: "You leave with a real PySpark pipeline mindset, not just isolated DataFrame syntax.",
+    masteryCheckpoint: "You can reason about Spark work before it burns cluster time.",
+  },
+  {
+    title: "Partitioning, Joins, and Skew",
+    theme: "Distribution choices decide whether the cluster helps or hurts.",
+    objectives: [
+      "Choose repartition versus coalesce intentionally.",
+      "Understand broadcast joins, sort-merge joins, and partition strategy.",
+      "Diagnose skew and rewrite transforms to reduce hotspots.",
+    ],
+    topics: ["partitioning", "repartition", "coalesce", "broadcast joins", "sort-merge joins", "skew"],
+    practice: [
+      "Choose output partitioning for large writes.",
+      "Compare broadcast and sort-merge join tradeoffs.",
+      "Diagnose skew from one oversized key or partition.",
+    ],
+    debugging: "One join stage runs far longer than the others because a handful of keys dominate the data. Reduce the skew pain.",
+    businessCase: "A customer-order pipeline must join large and small data safely without cluster hotspots.",
+    interviewPrompts: [
+      "When should you broadcast a table?",
+      "What is the difference between repartition and coalesce?",
+    ],
+    assessment: "Tune a join-heavy job with partitioning and skew-aware reasoning.",
+    project: "Redesign a Spark join flow for balanced partitions and safer writes.",
+    revision: [
+      "Review the signs of skew in a stage timeline.",
+      "Practice choosing the cheaper join strategy from data shape first.",
+    ],
+    masteryCheckpoint: "You can talk about distribution, not just transformations.",
+  },
+  {
+    title: "Catalyst, Tungsten, and Storage-Aware Performance",
+    theme: "Senior Spark work means understanding optimizer and storage behavior together.",
+    objectives: [
+      "Explain how Catalyst and Tungsten change physical execution.",
+      "Use predicate pushdown, partition pruning, caching, and persistence deliberately.",
+      "Reason about memory, serialization, spill, and small-file side effects.",
+    ],
+    topics: ["Catalyst", "Tungsten", "predicate pushdown", "partition pruning", "caching", "spill"],
+    practice: [
+      "Compare scans with and without partition pruning.",
+      "Decide when caching helps and when it just consumes memory.",
+      "Diagnose small-file and spill-related performance pain.",
+    ],
+    debugging: "A job reuses the same DataFrame many times but caching makes the cluster less stable. Explain the tradeoff.",
+    businessCase: "A daily Spark pipeline must scale predictably on shared compute with limited memory headroom.",
+    interviewPrompts: [
+      "What does predicate pushdown save?",
+      "Why can caching hurt instead of help?",
+    ],
+    assessment: "Review a Spark workload for optimizer, memory, and storage-level performance risks.",
+    project: "Optimize a Spark pipeline with plan, cache, and storage-aware reasoning.",
+    revision: [
+      "Review one case where pruning reduced the scan dramatically.",
+      "Practice describing spill and serialization in operational terms.",
+    ],
+    masteryCheckpoint: "You can connect Spark internals to visible performance outcomes.",
+  },
+  {
+    title: "Delta Lake and Production Batch Design",
+    theme: "Lakehouse work is about safe change over time, not just bigger files.",
+    objectives: [
+      "Use Delta concepts such as MERGE, schema evolution, and time travel correctly.",
+      "Design bronze, silver, and gold flows with explicit quality and contract boundaries.",
+      "Build a production batch-pipeline design with replay and auditing in mind.",
+    ],
+    topics: ["Delta Lake", "MERGE", "schema evolution", "time travel", "medallion architecture", "batch design"],
+    practice: [
+      "Choose where bronze, silver, and gold responsibilities belong.",
+      "Design a MERGE workflow for changing source records.",
+      "Explain when schema evolution is safe versus risky.",
+    ],
+    debugging: "A Delta MERGE updated the wrong history because the match condition ignored the business key grain. Repair the design.",
+    businessCase: "The platform team needs a medallion batch flow for operational and analytics consumers.",
+    interviewPrompts: [
+      "What problem does Delta MERGE solve?",
+      "How do bronze, silver, and gold differ in responsibility?",
+    ],
+    assessment: "Design a Delta-backed batch pipeline with merge strategy, quality gates, and rollback reasoning.",
+    project: "Production batch-pipeline project using medallion responsibilities and Delta-style history handling.",
+    revision: [
+      "Review the business key and merge key separately.",
+      "Practice explaining time travel and schema evolution clearly.",
+    ],
+    masteryCheckpoint: "You can design a lakehouse batch pipeline with durable change-management thinking.",
+  },
+  {
+    title: "Structured Streaming Foundations",
+    theme: "Streaming correctness depends on time, state, and promises.",
+    objectives: [
+      "Understand streaming triggers, windows, watermarks, and stateful processing.",
+      "Explain checkpointing, recovery, and the limits of exactly-once claims.",
+      "Reason about event time versus processing time in real data flows.",
+    ],
+    topics: ["structured streaming", "triggers", "windows", "watermarks", "state", "checkpointing"],
+    practice: [
+      "Choose event-time windows and watermark delays.",
+      "Explain what state a streaming aggregation must hold.",
+      "Compare processing-time and event-time behavior on late data.",
+    ],
+    debugging: "A streaming aggregate drops valuable late events because the watermark is too aggressive. Rebalance the guarantee.",
+    businessCase: "A near-real-time metrics pipeline must tolerate late arrivals while still producing stable outputs.",
+    interviewPrompts: [
+      "What does a watermark actually protect?",
+      "Why is exactly-once often narrower than people think?",
+    ],
+    assessment: "Design a streaming Spark job with windows, watermarks, and honest recovery expectations.",
+    project: "Create a structured-streaming design for near-real-time KPI updates.",
+    revision: [
+      "Review event time versus processing time from memory.",
+      "Practice explaining what gets checkpointed and why.",
+    ],
+    masteryCheckpoint: "You can reason about streaming correctness instead of treating it like batch with smaller delays.",
+  },
+  {
+    title: "Data Quality, Observability, and Incident Response",
+    theme: "Senior Spark engineers build the evidence path before the incident starts.",
+    objectives: [
+      "Add contract checks, observability signals, and lineage-aware thinking to Spark jobs.",
+      "Detect freshness, completeness, and distribution problems with operational evidence.",
+      "Respond to Spark data incidents with a repeatable triage path.",
+    ],
+    topics: ["data contracts", "observability", "lineage", "SLAs", "freshness", "incident response"],
+    practice: [
+      "Design blocking and non-blocking checks around a Spark write.",
+      "Emit signals that explain stage outcomes and data-quality failures.",
+      "Work backward from a broken gold table to the likely upstream break.",
+    ],
+    debugging: "A gold dataset is late and partly wrong after a cluster issue. Decide what to re-run, what to quarantine, and what to communicate.",
+    businessCase: "A Spark platform must support business-critical reporting with observable failure modes.",
+    interviewPrompts: [
+      "What observability do you want on a production Spark job?",
+      "How do you turn a Spark failure into an actionable incident path?",
+    ],
+    assessment: "Produce an observability and recovery plan for a production Spark pipeline.",
+    project: "Add contracts, alerts, and incident reasoning to a Spark data product.",
+    revision: [
+      "Review one signal that would have made a past failure faster to debug.",
+      "Practice separating symptoms from root-cause evidence.",
+    ],
+    masteryCheckpoint: "You think like the Spark engineer who has to restore trust under pressure.",
+  },
+  {
+    title: "Pipeline Architecture and Platform Tradeoffs",
+    theme: "Strong Spark decisions live inside a larger system, not in isolated notebooks.",
+    objectives: [
+      "Map Spark workloads to orchestration, storage, serving, and cost boundaries.",
+      "Evaluate where logic should live across SQL, Python, Spark, and platform services.",
+      "Defend architecture choices with tradeoffs around cost, latency, and operability.",
+    ],
+    topics: ["pipeline architecture", "orchestration", "cost tradeoffs", "cloud mapping", "system design", "ownership"],
+    practice: [
+      "Place validation, transformation, and serving logic across a layered platform.",
+      "Compare batch and streaming architectures for the same business need.",
+      "Explain the operational cost of one design versus another.",
+    ],
+    debugging: "A Spark job became a dumping ground for logic that belongs in orchestration and warehouse layers. Re-slice the architecture.",
+    businessCase: "A data platform team must decide how Spark fits into a broader lakehouse and warehouse stack.",
+    interviewPrompts: [
+      "What logic belongs in Spark versus SQL or Python?",
+      "How do you explain Spark cost tradeoffs in architecture review?",
+    ],
+    assessment: "Review a platform design and defend a cleaner Spark responsibility boundary.",
+    project: "Create a Spark system-design exercise with ownership and cost reasoning.",
+    revision: [
+      "Review one case where Spark should not own the business rule.",
+      "Practice describing the data flow across platform layers.",
+    ],
+    masteryCheckpoint: "You can place Spark work in the context of the whole data platform.",
+  },
+  {
+    title: "Final PySpark Capstone and Performance Defense",
+    theme: "Finish by proving correctness, scalability, and engineering judgment together.",
+    objectives: [
+      "Deliver a final Spark solution with transformation, quality, and performance reasoning.",
+      "Handle timed Spark design, debugging, and review conversations honestly.",
+      "Defend tradeoffs around partitioning, joins, state, storage, and recovery.",
+    ],
+    topics: ["final capstone", "performance assessment", "debugging incident", "architecture defense", "mock interview"],
+    practice: [
+      "Complete a capstone transformation and explain the stage plan.",
+      "Debug one performance and one quality incident under time pressure.",
+      "Defend the final architecture and optimization path out loud.",
+    ],
+    debugging: "The final Spark pipeline is correct but too slow and too fragile for production. Prioritize the fixes and defend the order.",
+    businessCase: "Ship a final Spark data-engineering solution another senior engineer could review, challenge, and run.",
+    interviewPrompts: [
+      "What tradeoff did you make intentionally in the final design?",
+      "What would you change first if the data doubled tomorrow?",
+    ],
+    assessment: "Complete the capstone pack: transformation design, performance reasoning, debugging incident, and architecture defense.",
+    project: "Final PySpark capstone with transformation, quality, tuning, and operational defense.",
+    revision: [
+      "Review the biggest Spark tradeoff you still need to explain more crisply.",
+      "Redo one hard capstone decision from a blank page.",
+    ],
+    masteryCheckpoint: "You can design, debug, and defend PySpark work at a strong data-engineering level.",
   },
 ] as const;
 
-const pysparkWeeksInput: WeekInput[] = pysparkPlanInputs.map((plan, index) => ({
+const pysparkWeeksInput: WeekInput[] = [...pysparkPlanInputs, ...pysparkPlanExtensionInputs].map((plan, index) => ({
   monthNumber: Math.floor(index / 4) + 1,
   weekNumber: index + 1,
   levelNumber: index + 1,
@@ -2229,26 +3233,29 @@ const pysparkWeeksInput: WeekInput[] = pysparkPlanInputs.map((plan, index) => ({
   theme: plan.theme,
   objectives: [...plan.objectives],
   topics: [...plan.topics],
-  guidedLessons: [
-    {
-      title: `${plan.title}: mental model`,
-      summary: `Build intuition for ${plan.topics[0]} and ${plan.topics[1] ?? plan.topics[0]} in a distributed-data setting.`,
-      estimatedMinutes: 30,
-      tags: ["mental-model", plan.topics[0].toLowerCase().replace(/\s+/g, "-")],
-    },
-    {
-      title: `${plan.title}: practical transforms`,
-      summary: `Apply ${plan.topics.slice(0, 3).join(", ")} to a realistic data-engineering problem.`,
-      estimatedMinutes: 35,
-      tags: ["practice", plan.topics[1].toLowerCase().replace(/\s+/g, "-")],
-    },
-    {
-      title: `${plan.title}: debugging and review`,
-      summary: `Use the week ideas to inspect failure modes, tradeoffs, and production behavior.`,
-      estimatedMinutes: 30,
-      tags: ["debugging", "review"],
-    },
-  ],
+  guidedLessons:
+    index === 0
+      ? pysparkWeekOneGuidedLessons
+      : [
+          {
+            title: `${plan.title}: mental model`,
+            summary: `Build intuition for ${plan.topics[0]} and ${plan.topics[1] ?? plan.topics[0]} in a distributed-data setting.`,
+            estimatedMinutes: 30,
+            tags: ["mental-model", plan.topics[0].toLowerCase().replace(/\s+/g, "-")],
+          },
+          {
+            title: `${plan.title}: practical transforms`,
+            summary: `Apply ${plan.topics.slice(0, 3).join(", ")} to a realistic data-engineering problem.`,
+            estimatedMinutes: 35,
+            tags: ["practice", plan.topics[1].toLowerCase().replace(/\s+/g, "-")],
+          },
+          {
+            title: `${plan.title}: debugging and review`,
+            summary: `Use the week ideas to inspect failure modes, tradeoffs, and production behavior.`,
+            estimatedMinutes: 30,
+            tags: ["debugging", "review"],
+          },
+        ],
   practice: [...plan.practice],
   debugging: plan.debugging,
   businessCase: plan.businessCase,
@@ -2259,8 +3266,8 @@ const pysparkWeeksInput: WeekInput[] = pysparkPlanInputs.map((plan, index) => ({
   masteryCheckpoint: plan.masteryCheckpoint,
 }));
 
-export const sqlWeeks = toWeeks("sql", sqlWeeksInput);
-export const pythonWeeks = toWeeks("python", pythonWeeksInput);
+export const sqlWeeks = toWeeks("sql", [...sqlWeeksInput, ...sqlWeeksExtension]);
+export const pythonWeeks = toWeeks("python", [...pythonWeeksInput, ...pythonWeeksExtension]);
 export const pysparkWeeks = toWeeks("pyspark", pysparkWeeksInput);
 export const allWeeks = [...sqlWeeks, ...pythonWeeks, ...pysparkWeeks];
 
@@ -2486,7 +3493,159 @@ export const topicMasterySeeds: TopicMasteryRecord[] = [
     score: 0,
     recentTrend: "steady" as const,
   }),
+  buildRecord("mastery-pyspark-foundations", {
+    courseSlug: "pyspark" as const,
+    topic: "Spark Foundations",
+    score: 0,
+    recentTrend: "steady" as const,
+  }),
+  buildRecord("mastery-pyspark-joins", {
+    courseSlug: "pyspark" as const,
+    topic: "Spark Joins and Aggregations",
+    score: 0,
+    recentTrend: "steady" as const,
+  }),
+  buildRecord("mastery-pyspark-performance", {
+    courseSlug: "pyspark" as const,
+    topic: "Spark Performance",
+    score: 0,
+    recentTrend: "steady" as const,
+  }),
 ];
+
+export interface CurriculumValidationIssue {
+  code:
+    | "INVALID_DURATION"
+    | "MISSING_WEEK"
+    | "DUPLICATE_WEEK"
+    | "EMPTY_WEEK_COMPONENT"
+    | "INVALID_GUIDED_LESSONS"
+    | "BROKEN_LESSON_MAPPING";
+  message: string;
+}
+
+export interface CourseCoverageSummary {
+  courseSlug: CourseSlug;
+  expectedWeeks: number;
+  actualWeeks: number;
+  lessonCount: number;
+  firstWeek: number | null;
+  lastWeek: number | null;
+}
+
+export function getCourseCoverageSummary(): CourseCoverageSummary[] {
+  return courses.map((course) => {
+    const courseWeeks = getWeeksByCourse(course.slug);
+    return {
+      courseSlug: course.slug,
+      expectedWeeks: course.durationWeeks,
+      actualWeeks: courseWeeks.length,
+      lessonCount: lessons.filter((lesson) => lesson.courseSlug === course.slug).length,
+      firstWeek: courseWeeks[0]?.weekNumber ?? null,
+      lastWeek: courseWeeks[courseWeeks.length - 1]?.weekNumber ?? null,
+    };
+  });
+}
+
+export function validateCurriculumStructure(): CurriculumValidationIssue[] {
+  const issues: CurriculumValidationIssue[] = [];
+
+  for (const course of courses) {
+    const courseWeeks = getWeeksByCourse(course.slug);
+    const seenWeeks = new Set<number>();
+
+    if (courseWeeks.length !== course.durationWeeks) {
+      issues.push({
+        code: "INVALID_DURATION",
+        message: `${course.slug} expected ${course.durationWeeks} weeks but found ${courseWeeks.length}.`,
+      });
+    }
+
+    for (const week of courseWeeks) {
+      if (seenWeeks.has(week.weekNumber)) {
+        issues.push({
+          code: "DUPLICATE_WEEK",
+          message: `${course.slug} has a duplicate week number ${week.weekNumber}.`,
+        });
+      }
+      seenWeeks.add(week.weekNumber);
+
+      const requiredStrings = [
+        ["title", week.title],
+        ["theme", week.theme],
+        ["debugging", week.debugging],
+        ["businessCase", week.businessCase],
+        ["assessment", week.assessment],
+        ["project", week.project],
+        ["masteryCheckpoint", week.masteryCheckpoint],
+      ] as const;
+      for (const [label, value] of requiredStrings) {
+        if (!value.trim()) {
+          issues.push({
+            code: "EMPTY_WEEK_COMPONENT",
+            message: `${course.slug} week ${week.weekNumber} is missing ${label}.`,
+          });
+        }
+      }
+
+      const requiredArrays = [
+        ["objectives", week.objectives],
+        ["topics", week.topics],
+        ["practice", week.practice],
+        ["revision", week.revision],
+        ["interviewPrompts", week.interviewPrompts],
+      ] as const;
+      for (const [label, value] of requiredArrays) {
+        if (value.length === 0 || value.some((item) => !item.trim())) {
+          issues.push({
+            code: "EMPTY_WEEK_COMPONENT",
+            message: `${course.slug} week ${week.weekNumber} has an empty ${label} section.`,
+          });
+        }
+      }
+
+      if (week.guidedLessons.length < 3) {
+        issues.push({
+          code: "INVALID_GUIDED_LESSONS",
+          message: `${course.slug} week ${week.weekNumber} has fewer than 3 guided lessons.`,
+        });
+      }
+
+      for (const guidedLesson of week.guidedLessons) {
+        if (
+          !guidedLesson.title.trim() ||
+          !guidedLesson.summary.trim() ||
+          guidedLesson.estimatedMinutes <= 0 ||
+          guidedLesson.tags.length === 0
+        ) {
+          issues.push({
+            code: "INVALID_GUIDED_LESSONS",
+            message: `${course.slug} week ${week.weekNumber} contains an incomplete guided lesson definition.`,
+          });
+        }
+      }
+
+      const weekLessons = getLessonsByWeek(week.id);
+      if (weekLessons.length !== week.guidedLessons.length) {
+        issues.push({
+          code: "BROKEN_LESSON_MAPPING",
+          message: `${course.slug} week ${week.weekNumber} expected ${week.guidedLessons.length} generated lessons but found ${weekLessons.length}.`,
+        });
+      }
+    }
+
+    for (let weekNumber = 1; weekNumber <= course.durationWeeks; weekNumber += 1) {
+      if (!seenWeeks.has(weekNumber)) {
+        issues.push({
+          code: "MISSING_WEEK",
+          message: `${course.slug} is missing week ${weekNumber}.`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
 
 export const getCourseBySlug = (slug: CourseSlug) => courses.find((course) => course.slug === slug) ?? null;
 
@@ -2499,3 +3658,13 @@ export const getLessonsByWeek = (weekId: string) =>
   lessons.filter((lesson) => lesson.weekId === weekId);
 
 export const getLessonById = (lessonId: string) => lessons.find((lesson) => lesson.id === lessonId) ?? null;
+
+const curriculumValidationIssues = validateCurriculumStructure();
+
+if (curriculumValidationIssues.length > 0) {
+  throw new Error(
+    `Curriculum validation failed:\n${curriculumValidationIssues
+      .map((issue) => `- [${issue.code}] ${issue.message}`)
+      .join("\n")}`,
+  );
+}

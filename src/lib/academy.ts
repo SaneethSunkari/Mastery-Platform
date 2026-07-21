@@ -3,11 +3,31 @@ import { CourseSlug } from "@/lib/types";
 export interface QuestionBankEntry {
   id: string;
   courseSlug: CourseSlug;
+  levelNumber: number;
   stage: string;
   topic: string;
   difficulty: "easy" | "medium" | "hard" | "expert";
   title: string;
   prompt: string;
+  businessGoal: string;
+  deliverable: string;
+  hints: string[];
+  masteryAngle: string;
+  relatedChapterId: string;
+}
+
+export interface MaterialChapter {
+  id: string;
+  courseSlug: CourseSlug;
+  chapterNumber: number;
+  month: number;
+  stage: string;
+  title: string;
+  summary: string;
+  whyItMatters: string;
+  keyIdeas: string[];
+  commonMistakes: string[];
+  practiceMoves: string[];
 }
 
 export interface AcademyTrack {
@@ -59,8 +79,8 @@ const trackInputs: AcademyTrack[] = [
     description:
       "Learn SQL the way a data engineer uses it: schema reading, joins, windows, ETL validation, dimensional modeling, and incident-ready debugging.",
     roleFocus: "Analytics engineering, warehouse SQL, data quality checks, and production troubleshooting.",
-    weeklyTaskCount: 1000,
-    questionBankCount: 1000,
+    weeklyTaskCount: 60,
+    questionBankCount: 3000,
     arcadeLevelCount: 3000,
     capstoneCount: 8,
     projectsCount: 12,
@@ -153,13 +173,13 @@ const trackInputs: AcademyTrack[] = [
     description:
       "Build practical Python skill for data engineering: clean fundamentals, file and API handling, transformation code, testing, packaging, and pipeline-friendly design.",
     roleFocus: "Automation, ETL scripts, orchestration support code, testing, and maintainable backend habits.",
-    weeklyTaskCount: 1000,
-    questionBankCount: 1000,
+    weeklyTaskCount: 48,
+    questionBankCount: 3000,
     arcadeLevelCount: 3000,
     capstoneCount: 8,
     projectsCount: 10,
     dailyMinutes: 90,
-    continueHref: "/python/week/python-week-01",
+    continueHref: "/python",
     supportCopy: "Use simple explanations first, then practice with drills, mini-builds, and interview-style coding rounds.",
     stageLadder: stageDefaults,
     materialPillars: [
@@ -247,13 +267,13 @@ const trackInputs: AcademyTrack[] = [
     description:
       "Learn PySpark like a working data engineer: transformations, joins, windows, Spark execution, partition strategy, incremental jobs, and scale-aware debugging.",
     roleFocus: "Distributed transforms, batch pipelines, Spark tuning, and large-volume data platform work.",
-    weeklyTaskCount: 1000,
-    questionBankCount: 1000,
+    weeklyTaskCount: 48,
+    questionBankCount: 3000,
     arcadeLevelCount: 3000,
     capstoneCount: 6,
     projectsCount: 8,
     dailyMinutes: 75,
-    continueHref: "/pyspark/week/pyspark-week-01",
+    continueHref: "/pyspark",
     supportCopy: "This lane stays separate from weekly missions so you can rehearse Spark thinking with short game-style challenges.",
     stageLadder: stageDefaults,
     materialPillars: [
@@ -386,6 +406,96 @@ const artifactsByTrack: Record<CourseSlug, string[]> = {
   pyspark: ["job", "DataFrame pipeline", "batch load", "Spark transform", "reconciliation check", "lakehouse task"],
 };
 
+const businessGoalsByTrack: Record<CourseSlug, string[]> = {
+  sql: [
+    "recover a broken warehouse KPI before the business review",
+    "build a clean customer revenue view for analytics engineering",
+    "validate an incremental load before downstream dashboards refresh",
+    "debug duplication and grain mismatch in a finance mart",
+    "ship a production-safe reconciliation query for an ETL handoff",
+  ],
+  python: [
+    "clean and validate pipeline input before batch processing starts",
+    "build reusable automation for a daily data ingestion job",
+    "repair a brittle transformation script that keeps failing in production",
+    "create maintainable utility code another engineer can extend safely",
+    "write dependable validation and logging around data movement",
+  ],
+  pyspark: [
+    "shape a large event stream into a reliable downstream fact table",
+    "stabilize a distributed job before the next scheduled batch window",
+    "design a replay-safe incremental transformation at scale",
+    "reduce shuffle pain in a wide transformation pipeline",
+    "prepare a lakehouse-style batch job for production review",
+  ],
+};
+
+const deliverablesByTrack: Record<CourseSlug, string[]> = {
+  sql: [
+    "Return the exact result set with clean naming and explain the output grain.",
+    "Write the final query as if it will be reviewed by an analytics engineer.",
+    "Keep the logic readable enough for incident debugging at 2 AM.",
+    "Solve it with maintainable SQL rather than a lucky one-off answer.",
+  ],
+  python: [
+    "Write clean executable logic with readable function boundaries.",
+    "Prefer maintainable code structure over clever shortcuts.",
+    "Design the solution the way a data engineer would hand it to a teammate.",
+    "Make the transformation steps obvious enough for later debugging.",
+  ],
+  pyspark: [
+    "Express the transformation in DataFrame-style logic with scale awareness.",
+    "Keep partition and shuffle implications in mind while solving the task.",
+    "Write the code the way a production Spark pipeline would want it.",
+    "Use readable staged transformations instead of a tangled notebook blob.",
+  ],
+};
+
+const hintThemesByTrack: Record<CourseSlug, string[]> = {
+  sql: [
+    "Start by stating the input table grain before writing the query.",
+    "Decide whether this is projection, filtering, aggregation, or comparison first.",
+    "Check whether the requested output needs sorting, deduplication, or grouping.",
+    "Prefer a readable CTE if the business logic has more than one step.",
+  ],
+  python: [
+    "Name the input and output shape before touching the loop or function.",
+    "Break the transformation into small steps you could unit test later.",
+    "Reach for clear function boundaries instead of writing everything inline.",
+    "Think about validation and failure handling before the happy path only.",
+  ],
+  pyspark: [
+    "Think about row shape and partition behavior before chaining transforms.",
+    "Prefer explicit column logic so the transformation stays debuggable.",
+    "Ask whether the step is narrow or wide and why that matters.",
+    "Keep Spark lazy execution in mind when structuring the solution.",
+  ],
+};
+
+const masteryAnglesByTrack: Record<CourseSlug, string[]> = {
+  sql: [
+    "output grain discipline",
+    "business-metric correctness",
+    "warehouse readability",
+    "production debugging clarity",
+    "performance-safe thinking",
+  ],
+  python: [
+    "clean code structure",
+    "ETL reliability",
+    "testability",
+    "operational safety",
+    "refactoring discipline",
+  ],
+  pyspark: [
+    "distributed transformation thinking",
+    "partition awareness",
+    "shuffle cost control",
+    "schema discipline",
+    "pipeline-scale debugging",
+  ],
+};
+
 const difficultyForQuestion = (index: number, total: number): QuestionBankEntry["difficulty"] => {
   const ratio = (index + 1) / total;
   if (ratio <= 0.3) return "easy";
@@ -399,19 +509,75 @@ const buildQuestionBankForTrack = (track: AcademyTrack): QuestionBankEntry[] =>
     const topic = topicsByTrack[track.slug][index % topicsByTrack[track.slug].length];
     const verb = verbsByTrack[track.slug][index % verbsByTrack[track.slug].length];
     const artifact = artifactsByTrack[track.slug][index % artifactsByTrack[track.slug].length];
+    const businessGoal = businessGoalsByTrack[track.slug][index % businessGoalsByTrack[track.slug].length];
+    const deliverable = deliverablesByTrack[track.slug][index % deliverablesByTrack[track.slug].length];
+    const masteryAngle = masteryAnglesByTrack[track.slug][index % masteryAnglesByTrack[track.slug].length];
     const stage = track.stageLadder[Math.floor((index / track.questionBankCount) * track.stageLadder.length)] ?? track.stageLadder.at(-1) ?? "Mastery";
     const difficulty = difficultyForQuestion(index, track.questionBankCount);
+    const levelNumber = index + 1;
+    const monthIndex = Math.min(Math.floor(index / (track.questionBankCount / track.monthPlan.length)), track.monthPlan.length - 1);
+    const month = track.monthPlan[monthIndex];
+    const focusTopic = month?.focus[index % month.focus.length] ?? topic;
+    const hints = [
+      hintThemesByTrack[track.slug][index % hintThemesByTrack[track.slug].length],
+      `Stay aligned with the ${stage.toLowerCase()} stage and keep the answer easy to explain.`,
+      `Connect the solution to ${focusTopic.toLowerCase()} so the drill reinforces the current month.`,
+    ];
 
     return {
-      id: `${track.slug}-question-${String(index + 1).padStart(4, "0")}`,
+      id: `${track.slug}-question-${String(levelNumber).padStart(4, "0")}`,
       courseSlug: track.slug,
+      levelNumber,
       stage,
       topic,
       difficulty,
-      title: `${track.shortLabel} ${index + 1}: ${verb[0].toUpperCase()}${verb.slice(1)} a ${artifact}`,
-      prompt: `Solve a ${difficulty} ${track.shortLabel} challenge about ${topic}. Keep the answer clean, production-aware, and easy to explain.`,
+      title: `${track.shortLabel} ${levelNumber}: ${verb[0].toUpperCase()}${verb.slice(1)} a ${artifact}`,
+      prompt: `Solve a ${difficulty} ${track.shortLabel} challenge about ${topic} for a data-engineering workflow. This drill sits in ${stage.toLowerCase()} and should feel like real project work, not theory-only reading.`,
+      businessGoal,
+      deliverable,
+      hints,
+      masteryAngle,
+      relatedChapterId: `${track.slug}-chapter-${String(monthIndex * 4 + (index % 4) + 1).padStart(3, "0")}`,
     };
   });
+
+const buildMaterialChaptersForTrack = (track: AcademyTrack): MaterialChapter[] =>
+  track.monthPlan.flatMap((monthPlan, monthIndex) =>
+    monthPlan.focus.map((focus, focusIndex) => {
+      const chapterNumber = monthIndex * monthPlan.focus.length + focusIndex + 1;
+      const stage =
+        track.stageLadder[Math.min(monthIndex, track.stageLadder.length - 1)] ?? track.stageLadder.at(-1) ?? "Mastery";
+      const topic = topicsByTrack[track.slug][(monthIndex * monthPlan.focus.length + focusIndex) % topicsByTrack[track.slug].length];
+      const verb = verbsByTrack[track.slug][(monthIndex * monthPlan.focus.length + focusIndex) % verbsByTrack[track.slug].length];
+      const artifact = artifactsByTrack[track.slug][(monthIndex * monthPlan.focus.length + focusIndex) % artifactsByTrack[track.slug].length];
+
+      return {
+        id: `${track.slug}-chapter-${String(chapterNumber).padStart(3, "0")}`,
+        courseSlug: track.slug,
+        chapterNumber,
+        month: monthPlan.month,
+        stage,
+        title: `${monthPlan.title}: ${focus}`,
+        summary: `Easy-notes chapter for ${focus.toLowerCase()} inside ${track.title.toLowerCase()}. Learn the concept simply first, then connect it to the way a data engineer would ${verb} a ${artifact}.`,
+        whyItMatters: `${focus} matters in real work because it directly affects ${businessGoalsByTrack[track.slug][(monthIndex + focusIndex) % businessGoalsByTrack[track.slug].length]}.`,
+        keyIdeas: [
+          `Understand the core mental model behind ${focus.toLowerCase()} before memorizing syntax.`,
+          `Tie ${focus.toLowerCase()} back to ${topic} so the concept stays useful under pressure.`,
+          `Use ${focus.toLowerCase()} in a way another engineer can read, review, and maintain.`,
+        ],
+        commonMistakes: [
+          `Rushing into code without naming the expected output or business contract for ${focus.toLowerCase()}.`,
+          `Treating ${focus.toLowerCase()} like isolated syntax instead of part of a bigger data workflow.`,
+          `Skipping readability and operational safety when solving ${focus.toLowerCase()} tasks.`,
+        ],
+        practiceMoves: [
+          `Solve 15-20 drills around ${focus.toLowerCase()} before moving on.`,
+          `Explain ${focus.toLowerCase()} out loud in simple language after each study block.`,
+          `Rewrite one messy answer into a cleaner production-style solution using ${focus.toLowerCase()}.`,
+        ],
+      };
+    }),
+  );
 
 export const academyTracks = trackInputs;
 export const academyTrackMap = Object.fromEntries(
@@ -419,6 +585,7 @@ export const academyTrackMap = Object.fromEntries(
 ) as Record<CourseSlug, AcademyTrack>;
 
 export const questionBank = academyTracks.flatMap(buildQuestionBankForTrack);
+export const materialChapters = academyTracks.flatMap(buildMaterialChaptersForTrack);
 
 export const academyStats = {
   tracks: academyTracks.length,
@@ -428,19 +595,34 @@ export const academyStats = {
   totalCandyArcadeLevels: 3000,
   totalCapstones: academyTracks.reduce((sum, track) => sum + track.capstoneCount, 0),
   totalProjects: academyTracks.reduce((sum, track) => sum + track.projectsCount, 0),
+  totalMaterialChapters: materialChapters.length,
 };
 
 export const academyBuildStatus = {
   roadmapMonthsTarget: 6,
   roadmapWeeksTarget: 24,
   freeTierSqlWeeksLive: 4,
-  sqlVerifiedWeeksLive: 4,
+  sqlVerifiedWeeksLive: 24,
+  sqlVerifiedTaskCount: 3000,
+  pythonVerifiedTaskCount: 3000,
+  pysparkStructurallyVerifiedTaskCount: 3000,
+  pysparkRuntimeVerifiedTaskCount: 9,
   pythonVerifiedWeeksLive: 0,
   pysparkVerifiedWeeksLive: 0,
-  verifiedTriLanguageArcadeQuestionsLive: 0,
-  plannedPerTrackCapacity: 1000,
+  verifiedTriLanguageArcadeQuestionsLive: 3000,
+  verifiedTriLanguageArcadeSolutionsLive: 9000,
+  generatedQuestionBankPerTrackLive: 3000,
+  generatedTrackGameLevelsPerTrackLive: 3000,
+  generatedMaterialChaptersPerTrackLive: 24,
+  plannedPerTrackCapacity: 3000,
   plannedTriLanguageArcadeCapacity: 3000,
 };
 
 export const getTrackQuestionSamples = (courseSlug: CourseSlug, count = 4) =>
   questionBank.filter((item) => item.courseSlug === courseSlug).slice(0, count);
+
+export const getTrackQuestions = (courseSlug: CourseSlug) =>
+  questionBank.filter((item) => item.courseSlug === courseSlug);
+
+export const getTrackMaterialChapters = (courseSlug: CourseSlug) =>
+  materialChapters.filter((item) => item.courseSlug === courseSlug);

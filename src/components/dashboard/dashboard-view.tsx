@@ -32,7 +32,7 @@ export function DashboardView() {
     },
     {
       label: "Revision due",
-      value: `${summary.revisionDue.length}`,
+      value: `${summary.dueToday.length} today / ${summary.overdue.length} overdue`,
       icon: RefreshCcw,
     },
     {
@@ -47,19 +47,19 @@ export function DashboardView() {
       title: "SQL",
       percent: summary.sqlCompletion,
       href: "/sql/week/sql-week-01",
-      detail: `${summary.completedSqlTasks} SQL tasks saved locally · ${academyBuildStatus.sqlVerifiedWeeksLive} verified weeks live`,
+      detail: `${summary.completedSqlTasks} SQL tasks saved locally · mastery ${summary.masteryScores.sql}%`,
     },
     {
       title: "Python",
       percent: summary.pythonCompletion,
       href: "/python",
-      detail: `${summary.pythonProgress?.exercisesSolved ?? 0} solved · runtime lane in development`,
+      detail: `${academyBuildStatus.pythonVerifiedTaskCount} runtime-verified drills live · mastery ${summary.masteryScores.python}%`,
     },
     {
       title: "PySpark",
       percent: summary.pysparkCompletion,
-      href: "/pyspark/week/pyspark-week-01",
-      detail: `${summary.pysparkProgress?.exercisesSolved ?? 0} solved · lesson lane and week structure live`,
+      href: "/pyspark",
+      detail: `${academyBuildStatus.pysparkRuntimeVerifiedTaskCount} Spark-runtime validators live · ${academyBuildStatus.pysparkStructurallyVerifiedTaskCount} structural drills · mastery ${summary.masteryScores.pyspark}%`,
     },
   ];
 
@@ -90,22 +90,25 @@ export function DashboardView() {
               <p className="mt-2 text-3xl font-semibold">{academyBuildStatus.roadmapWeeksTarget} weeks</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">SQL verified now</p>
-              <p className="mt-2 text-3xl font-semibold">{academyBuildStatus.sqlVerifiedWeeksLive} weeks</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Overall mastery</p>
+              <p className="mt-2 text-3xl font-semibold">{summary.overallMasteryScore}%</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Python graded now</p>
-              <p className="mt-2 text-3xl font-semibold">{academyBuildStatus.pythonVerifiedWeeksLive}</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Due today</p>
+              <p className="mt-2 text-3xl font-semibold">{summary.dueToday.length}</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">PySpark graded now</p>
-              <p className="mt-2 text-3xl font-semibold">{academyBuildStatus.pysparkVerifiedWeeksLive}</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Overdue reviews</p>
+              <p className="mt-2 text-3xl font-semibold">{summary.overdue.length}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link href="/sql/week/sql-week-01" className={cn(buttonVariants(), "rounded-full bg-amber-300 text-slate-950 hover:bg-amber-200")}>
               Start SQL missions
               <ArrowRight className="ml-2 size-4" />
+            </Link>
+            <Link href="/materials/sql" className={cn(buttonVariants({ variant: "outline" }), "rounded-full border-white/20 text-white hover:bg-white/10 hover:text-white")}>
+              Open materials
             </Link>
             <Link href="/arcade" className={cn(buttonVariants({ variant: "outline" }), "rounded-full border-white/20 text-white hover:bg-white/10 hover:text-white")}>
               Open Candy Arcade
@@ -156,8 +159,9 @@ export function DashboardView() {
                 </div>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">{track.description}</p>
                 <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-                  <p>Target capacity: {academyBuildStatus.plannedPerTrackCapacity} tasks/questions</p>
-                  <p>Arcade path: {track.arcadeLevelCount} planned level shells</p>
+                  <p>Generated drills live: {track.questionBankCount}</p>
+                  <p>Guided live items: {track.weeklyTaskCount}</p>
+                  <p>Track game path: {track.arcadeLevelCount} levels</p>
                   <p>Capstones planned: {track.capstoneCount}</p>
                 </div>
                 <Link
@@ -216,6 +220,56 @@ export function DashboardView() {
         </Card>
       </section>
 
+      <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-2xl">Recommended next lessons</CardTitle>
+            <CardDescription>Unlocked work that is ready now.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {summary.recommendedNextLessons.map((item) => (
+              <div key={`${item.courseSlug}-${item.lessonId}`} className="rounded-3xl border border-border/70 p-4">
+                <p className="font-medium">{item.lessonTitle}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{item.courseSlug.toUpperCase()}</p>
+                <Link
+                  href={item.courseSlug === "sql" ? `/sql/week/${item.weekId}?lesson=${item.lessonId}` : `/${item.courseSlug}?week=${item.weekId}&lesson=${item.lessonId}`}
+                  className={cn(buttonVariants({ variant: "link" }), "mt-2 px-0")}
+                >
+                  Open lesson
+                </Link>
+              </div>
+            ))}
+            {!summary.recommendedNextLessons.length ? (
+              <div className="rounded-3xl border border-dashed border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">
+                No unlocked next lesson is waiting right now.
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-heading text-2xl">Recently mastered or passed</CardTitle>
+            <CardDescription>Latest verified evidence recorded locally.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {summary.recentlyMastered.map((item) => (
+              <div key={`${item.courseSlug}-${item.lessonId}`} className="rounded-3xl border border-border/70 p-4">
+                <p className="font-medium">{item.lessonTitle}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {item.courseSlug.toUpperCase()} · {item.masteryState.replaceAll("_", " ")}
+                </p>
+              </div>
+            ))}
+            {!summary.recentlyMastered.length ? (
+              <div className="rounded-3xl border border-dashed border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">
+                No verified passes recorded yet.
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </section>
+
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader>
@@ -225,9 +279,11 @@ export function DashboardView() {
           <CardContent className="grid gap-3 md:grid-cols-2">
             {[
               `SQL Weeks 1-${academyBuildStatus.sqlVerifiedWeeksLive} are real blank-editor missions with result verification.`,
-              "Dashboard, local progress, notes surface, and backups work locally in the browser.",
-              "Candy Arcade UI exists, but it is still being brought up to the same honesty standard as the mission lanes.",
-              "Python and PySpark tracks currently show roadmap and materials more than full verified mission execution.",
+              "Materials is a first-class route again with structured track lessons, bookmarks, resume, and lesson-to-exercise links.",
+              `${academyBuildStatus.sqlVerifiedTaskCount} SQL, ${academyBuildStatus.pythonVerifiedTaskCount} Python, and ${academyBuildStatus.pysparkStructurallyVerifiedTaskCount} PySpark drills are audit-backed today.`,
+              "Dashboard, local progress, and backups work locally in the browser.",
+              `${academyBuildStatus.verifiedTriLanguageArcadeQuestionsLive} Candy Arcade levels are live with SQL, Python, and PySpark validators required on each level.`,
+              `Python runtime validation is shipped for its drill bank. PySpark has ${academyBuildStatus.pysparkRuntimeVerifiedTaskCount} real Spark-runtime validators and ${academyBuildStatus.pysparkStructurallyVerifiedTaskCount} structural drills.`,
             ].map((item) => (
               <div key={item} className="rounded-3xl border border-border/70 p-4 text-sm leading-6 text-muted-foreground">
                 {item}
@@ -244,8 +300,8 @@ export function DashboardView() {
           <CardContent className="space-y-3">
             {[
               `${academyBuildStatus.roadmapWeeksTarget}-week academy target across SQL, Python, and PySpark.`,
-              `${academyBuildStatus.plannedPerTrackCapacity} per-track task/question capacity is a structure target, not a verified content count.`,
-              `${academyBuildStatus.plannedTriLanguageArcadeCapacity} tri-language arcade target is planned capacity, not current real graded availability.`,
+              `Full real-runtime parity across SQL, Python, and PySpark is still not complete because PySpark has ${academyBuildStatus.pysparkRuntimeVerifiedTaskCount} real Spark runtime validators today.`,
+              `${academyBuildStatus.verifiedTriLanguageArcadeQuestionsLive}/${academyBuildStatus.plannedTriLanguageArcadeCapacity} Arcade levels are validator-backed with ${academyBuildStatus.verifiedTriLanguageArcadeSolutionsLive} required solutions verified.`,
             ].map((item) => (
               <div key={item} className="rounded-3xl border border-border/70 p-4 text-sm leading-6 text-muted-foreground">
                 {item}
@@ -257,14 +313,14 @@ export function DashboardView() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="font-heading text-2xl font-semibold tracking-tight">Materials In Detail</h2>
+          <h2 className="font-heading text-2xl font-semibold tracking-tight">Code Lanes In Detail</h2>
           <p className="text-sm text-muted-foreground">
-            Three separate study paths so you can learn each skill clearly from zero to stronger professional depth.
+            Three separate practice-first paths so you can grow each skill from basics to stronger professional depth.
           </p>
         </div>
         <div className="grid gap-4 xl:grid-cols-3">
           {academyTracks.map((track) => (
-            <Card key={`materials-${track.slug}`}>
+            <Card key={`lane-${track.slug}`}>
               <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="font-heading text-xl">{track.title}</CardTitle>
@@ -292,7 +348,7 @@ export function DashboardView() {
                   href={track.slug === "sql" ? "/sql" : `/${track.slug}`}
                   className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}
                 >
-                  Open {track.shortLabel} materials
+                  Open {track.shortLabel} code lane
                   <ArrowRight className="ml-2 size-4" />
                 </Link>
               </CardContent>
@@ -309,7 +365,7 @@ export function DashboardView() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             {[
-              "Materials are short, plain-language, and focused on one concept at a time.",
+              "Each lane is code-first, so you spend more time writing than reading.",
               "Weekly labs unlock in order so you always know what to do next.",
               "The arcade lane is different from the weekly tasks, so repetition does not feel repetitive.",
               "The whole roadmap stays aimed at data engineering instead of generic coding practice.",
@@ -328,9 +384,9 @@ export function DashboardView() {
           </CardHeader>
           <CardContent className="space-y-3">
             {[
-              `Free tier goal: SQL Weeks 1-${academyBuildStatus.freeTierSqlWeeksLive}, dashboard, notes, and local progress.`,
-              "Python runtime verification is still in development and should not be treated as fully shipped.",
-              "PySpark verification modes are still being built and should be labeled honestly as they arrive.",
+              `Free tier goal: SQL Weeks 1-${academyBuildStatus.freeTierSqlWeeksLive}, dashboard, and local progress.`,
+              `Python runtime verification is shipped for ${academyBuildStatus.pythonVerifiedTaskCount} drills according to the canonical audit.`,
+              `PySpark has ${academyBuildStatus.pysparkRuntimeVerifiedTaskCount} questions that currently record real Spark runtime evidence; structural drills available: ${academyBuildStatus.pysparkStructurallyVerifiedTaskCount}.`,
             ].map((item) => (
               <div key={item} className="rounded-3xl border border-border/70 p-4 text-sm leading-6 text-muted-foreground">
                 {item}

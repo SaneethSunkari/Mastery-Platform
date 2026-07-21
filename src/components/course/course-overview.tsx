@@ -49,7 +49,7 @@ export function CourseOverview({ courseSlug }: { courseSlug: CourseSlug }) {
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={courseTheme[courseSlug].badge}>{course.name}</Badge>
-            <Badge variant="outline">16 weeks</Badge>
+            <Badge variant="outline">{course.durationWeeks} weeks</Badge>
             <Badge variant="outline">1-2 hours per day</Badge>
           </div>
           <div className="space-y-2">
@@ -67,12 +67,6 @@ export function CourseOverview({ courseSlug }: { courseSlug: CourseSlug }) {
               className={buttonVariants({ variant: "outline" })}
             >
               Continue current lesson
-            </Link>
-            <Link
-              href={`/materials?track=${courseSlug}`}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Open materials
             </Link>
             <Link
               href="/arcade"

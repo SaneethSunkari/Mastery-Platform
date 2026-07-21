@@ -2,7 +2,7 @@ import { SqlTaskDefinition } from "@/lib/types";
 
 export const sqlWeekThreeId = "sql-week-03";
 
-export const sqlWeekThreeTasks: SqlTaskDefinition[] = [
+const sqlWeekThreeBaseTasks: SqlTaskDefinition[] = [
   {
     id: "sql-week-03-task-01",
     weekId: sqlWeekThreeId,
@@ -256,6 +256,234 @@ export const sqlWeekThreeTasks: SqlTaskDefinition[] = [
       "SELECT o.order_id, c.customer_name, c.country, o.status, o.amount\nFROM orders AS o\nJOIN customers AS c\n  ON o.customer_id = c.customer_id\nWHERE o.status IN ('paid', 'pending')\n  AND c.country IN ('US', 'Canada')\nORDER BY o.amount DESC;",
     orderSensitive: true,
   },
+];
+
+function buildSqlWeekThreeGeneratedTasks(): SqlTaskDefinition[] {
+  const families: Array<(stepNumber: number) => Omit<SqlTaskDefinition, "id" | "weekId" | "stepNumber">> = [
+    (stepNumber) => ({
+      title: `Paid order customer profile ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Join orders to customers and filter paid transactions.",
+      instructions: [
+        "Return paid orders with customer identity fields.",
+        "Show `order_id`, `customer_name`, `country`, `amount`, and `order_date`.",
+        "Sort by `order_date`, then `order_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT o.order_id, c.customer_name, c.country, o.amount, o.order_date
+FROM orders AS o
+JOIN customers AS c
+  ON c.customer_id = o.customer_id
+WHERE o.status = 'paid'
+ORDER BY o.order_date, o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Left join customer order coverage ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use a left join to preserve the customer grain.",
+      instructions: [
+        "Return every customer with any matching order id.",
+        "Show `customer_id`, `customer_name`, `order_id`, and `status`.",
+        "Sort by `customer_id`, then `order_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT c.customer_id, c.customer_name, o.order_id, o.status
+FROM customers AS c
+LEFT JOIN orders AS o
+  ON o.customer_id = c.customer_id
+ORDER BY c.customer_id, o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Captured payment reconciliation join ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Join orders to payments and compare amounts.",
+      instructions: [
+        "Return orders whose payment amount matches the order amount.",
+        "Only include captured payments.",
+        "Show `order_id`, `amount`, `payment_amount`, and `gateway`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT o.order_id, o.amount, p.payment_amount, p.gateway
+FROM orders AS o
+JOIN payments AS p
+  ON p.order_id = o.order_id
+WHERE p.payment_status = 'captured'
+  AND p.payment_amount = o.amount
+ORDER BY o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Shipment fulfillment join ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Join order and shipment state for fulfillment analysis.",
+      instructions: [
+        "Return paid orders and shipment status where a shipment exists.",
+        "Show `order_id`, `status`, `shipment_status`, and `warehouse`.",
+        "Sort by `order_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT o.order_id, o.status, s.shipment_status, s.warehouse
+FROM orders AS o
+JOIN shipments AS s
+  ON s.order_id = o.order_id
+WHERE o.status = 'paid'
+ORDER BY o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Customer payment gateway view ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Join three tables without changing the transaction grain.",
+      instructions: [
+        "Join customers, orders, and payments.",
+        "Return captured payments with `customer_name`, `order_id`, `gateway`, and `payment_amount`.",
+        "Sort by `payment_amount` descending.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT c.customer_name, o.order_id, p.gateway, p.payment_amount
+FROM customers AS c
+JOIN orders AS o
+  ON o.customer_id = c.customer_id
+JOIN payments AS p
+  ON p.order_id = o.order_id
+WHERE p.payment_status = 'captured'
+ORDER BY p.payment_amount DESC;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Order without delivered shipment check ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Use a left join with a missing-match condition.",
+      instructions: [
+        "Return paid orders that do not have a delivered shipment.",
+        "Show `order_id`, `customer_id`, `status`, and `shipment_status`.",
+        "Sort by `order_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT o.order_id, o.customer_id, o.status, s.shipment_status
+FROM orders AS o
+LEFT JOIN shipments AS s
+  ON s.order_id = o.order_id
+WHERE o.status = 'paid'
+  AND (s.shipment_status IS NULL OR s.shipment_status <> 'delivered')
+ORDER BY o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Active customer captured payments ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Combine joined filters across customer, order, and payment tables.",
+      instructions: [
+        "Return captured payments for active customers only.",
+        "Show `customer_name`, `order_id`, `payment_status`, and `payment_amount`.",
+        "Sort by `customer_name`, then `order_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT c.customer_name, o.order_id, p.payment_status, p.payment_amount
+FROM customers AS c
+JOIN orders AS o
+  ON o.customer_id = c.customer_id
+JOIN payments AS p
+  ON p.order_id = o.order_id
+WHERE c.is_active = 1
+  AND p.payment_status = 'captured'
+ORDER BY c.customer_name, o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `High value card shipment join ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Join rows then apply amount and payment-method filters.",
+      instructions: [
+        "Return card orders above 100 with any shipment information.",
+        "Show `order_id`, `amount`, `carrier`, and `shipment_status`.",
+        "Sort by `amount` descending.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT o.order_id, o.amount, s.carrier, s.shipment_status
+FROM orders AS o
+LEFT JOIN shipments AS s
+  ON s.order_id = o.order_id
+WHERE o.payment_method = 'card'
+  AND o.amount > 100
+ORDER BY o.amount DESC;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Country payment method join ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Join customer geography to order payment behavior.",
+      instructions: [
+        "Return US and Canada customer orders paid by card or paypal.",
+        "Show `order_id`, `country`, `payment_method`, and `amount`.",
+        "Sort by `country`, then `order_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT o.order_id, c.country, o.payment_method, o.amount
+FROM orders AS o
+JOIN customers AS c
+  ON c.customer_id = o.customer_id
+WHERE c.country IN ('US', 'Canada')
+  AND o.payment_method IN ('card', 'paypal')
+ORDER BY c.country, o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Payment refund customer trace ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Trace refunded payments back to customer and order context.",
+      instructions: [
+        "Return refunded payments with customer and order details.",
+        "Show `customer_name`, `order_id`, `refund_amount`, and `gateway`.",
+        "Sort by `order_id`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT c.customer_name, o.order_id, p.refund_amount, p.gateway
+FROM payments AS p
+JOIN orders AS o
+  ON o.order_id = p.order_id
+JOIN customers AS c
+  ON c.customer_id = o.customer_id
+WHERE p.refund_amount IS NOT NULL
+ORDER BY o.order_id;`,
+      orderSensitive: true,
+    }),
+    (stepNumber) => ({
+      title: `Employee appointment department join-style comparison ${stepNumber}`,
+      difficulty: "medium",
+      objective: "Compare departmental entities without accidental row loss.",
+      instructions: [
+        "Return appointment departments that also exist in employee departments.",
+        "Show distinct `department` values.",
+        "Sort by `department`.",
+      ],
+      starterSql: "",
+      solutionSql: `SELECT DISTINCT a.department
+FROM appointments AS a
+JOIN employees AS e
+  ON e.department = a.department
+ORDER BY a.department;`,
+      orderSensitive: true,
+    }),
+  ];
+
+  return Array.from({ length: 110 }, (_, index) => {
+    const stepNumber = index + 16;
+    const task = families[index % families.length](stepNumber);
+    return {
+      id: `sql-week-03-task-${String(stepNumber).padStart(3, "0")}`,
+      weekId: sqlWeekThreeId,
+      stepNumber,
+      ...task,
+    };
+  });
+}
+
+export const sqlWeekThreeTasks: SqlTaskDefinition[] = [
+  ...sqlWeekThreeBaseTasks,
+  ...buildSqlWeekThreeGeneratedTasks(),
 ];
 
 export const sqlWeekThreeUnlockMessage =

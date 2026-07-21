@@ -36,7 +36,7 @@ export default function Home() {
                   SQL + Python + PySpark for data engineering
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
-                  A practice-first learning platform with easy notes, weekly unlock missions, and a separate arcade lane.
+                  A practice-first learning platform with weekly unlock missions, separate code lanes, and a tri-language arcade.
                 </p>
               </div>
             </div>
@@ -45,7 +45,10 @@ export default function Home() {
                 Open dashboard
                 <ArrowRight className="ml-2 size-4" />
               </Link>
-              <Link href="/materials" className={cn(buttonVariants({ variant: "outline" }), "rounded-full")}>
+              <Link
+                href="/materials/sql"
+                className={cn(buttonVariants({ variant: "outline" }), "rounded-full")}
+              >
                 Open materials
               </Link>
             </div>
@@ -65,9 +68,9 @@ export default function Home() {
                   Learn like a data engineer from zero to strong production depth.
                 </CardTitle>
                 <CardDescription className="max-w-3xl text-sm leading-7 text-slate-300">
-                  Start with simple materials, move into verified SQL missions, then reinforce the same concepts through
-                  game-style practice in SQL, Python, and PySpark. The homepage is now a real landing page, so the site
-                  opens cleanly even when Render wakes up from sleep.
+                  Start with guided code missions, move through verified SQL progress, then reinforce the same concepts
+                  through a 3000-drill practice bank per track and a separate tri-language arcade in SQL, Python, and PySpark.
+                  The homepage is now a real landing page, so the site opens cleanly even when Render wakes up from sleep.
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-3">
@@ -85,10 +88,10 @@ export default function Home() {
                   Open Candy Arcade
                 </Link>
                 <Link
-                  href="/materials"
+                  href="/materials/sql"
                   className={cn(buttonVariants({ variant: "outline" }), "rounded-full border-white/20 text-white hover:bg-white/10 hover:text-white")}
                 >
-                  Study easy notes
+                  Browse materials
                 </Link>
               </div>
             </CardHeader>
@@ -108,6 +111,10 @@ export default function Home() {
                 <div className="rounded-3xl border border-border/70 p-4">
                   <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Tri-language arcade</p>
                   <p className="mt-2 text-3xl font-semibold">{academyStats.totalCandyArcadeLevels} levels</p>
+                </div>
+                <div className="rounded-3xl border border-border/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Generated drills</p>
+                  <p className="mt-2 text-3xl font-semibold">{academyBuildStatus.generatedQuestionBankPerTrackLive} / track</p>
                 </div>
               </CardContent>
             </Card>
@@ -142,14 +149,14 @@ export default function Home() {
               detail: "3000 per track",
             },
             {
+              label: "Generated drills",
+              value: academyStats.totalQuestions,
+              detail: "3000 per track",
+            },
+            {
               label: "Candy Arcade",
               value: academyStats.totalCandyArcadeLevels,
               detail: "same challenge in 3 languages",
-            },
-            {
-              label: "Roadmap target",
-              value: academyBuildStatus.roadmapWeeksTarget,
-              detail: "weeks from basics to advanced depth",
             },
           ].map((item) => (
             <Card key={item.label}>
@@ -208,7 +215,7 @@ export default function Home() {
                 {
                   icon: BookOpenText,
                   title: "Materials",
-                  body: "Separate easy notes for SQL, Python, and PySpark with a month-by-month path.",
+                  body: "Structured SQL, Python, and PySpark lessons with search, resume, examples, bookmarks, and direct links into mastery steps.",
                 },
                 {
                   icon: ShieldCheck,

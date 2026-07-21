@@ -14,6 +14,8 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { completeSqlTask, db, markSqlTaskRun, saveSqlTaskDraft } from "@/lib/db";
 import { sqlDatasetSchema, getSqlWeekDefinition } from "@/lib/sql-weeks";
+import { getLessonsByWeek } from "@/lib/curriculum";
+import { findSqlTaskByQuestionId } from "@/lib/questions/registry";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -109,7 +111,15 @@ function executeQuery(SQL: SqlJsStatic, sql: string) {
   };
 }
 
-export function SqlWeekWorkspace({ weekId }: { weekId: string }) {
+export function SqlWeekWorkspace({
+  weekId,
+  initialLessonId,
+  initialQuestionId,
+}: {
+  weekId: string;
+  initialLessonId?: string | null;
+  initialQuestionId?: string | null;
+}) {
   const router = useRouter();
   const weekDefinition = getSqlWeekDefinition(weekId);
   const [sqlModule, setSqlModule] = useState<SqlJsStatic | null>(null);
@@ -168,9 +178,24 @@ export function SqlWeekWorkspace({ weekId }: { weekId: string }) {
   }
 
   const activeWeek = weekDefinition;
+  const queryLessonIndex = initialLessonId
+    ? getLessonsByWeek(weekId).findIndex((lesson) => lesson.id === initialLessonId)
+    : -1;
+  const queryQuestionTask = initialQuestionId ? findSqlTaskByQuestionId(initialQuestionId) : null;
+  const queryTask =
+    queryQuestionTask && queryQuestionTask.weekId === weekId
+      ? queryQuestionTask
+      :
+    queryLessonIndex >= 0
+      ? activeWeek.tasks.find((task) => Math.floor((task.stepNumber - 1) / 5) === queryLessonIndex)
+      : null;
 
   const selectedTask =
-    activeWeek.tasks.find((task) => task.id === selectedTaskId) ?? activeWeek.tasks[0];
+    activeWeek.tasks.find((task) => task.id === selectedTaskId) ??
+    queryTask ??
+    activeWeek.tasks[0];
+  const relatedLessons = getLessonsByWeek(weekId);
+  const relatedLesson = relatedLessons[Math.floor((selectedTask.stepNumber - 1) / 5)] ?? null;
   const selectedProgress = progressRecords?.find((record) => record.taskId === selectedTask.id);
   const editorValue = draftsByTask[selectedTask.id] ?? selectedProgress?.draftSql ?? "";
   const completedCount = (progressRecords ?? []).filter((record) => record.completed).length;
@@ -296,35 +321,28 @@ export function SqlWeekWorkspace({ weekId }: { weekId: string }) {
 
   return (
     <div className="space-y-6">
-      <Card className="border-0 bg-linear-to-br from-slate-950 via-slate-900 to-slate-800 text-white">
-        <CardHeader className="space-y-4">
+      <Card className="border-border/70">
+        <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-amber-400/15 text-amber-200 hover:bg-amber-400/15">
-              {weekDefinition.badge}
-            </Badge>
-            <Badge className="bg-white/10 text-white hover:bg-white/10">15 unlock tasks</Badge>
+            <Badge className="bg-amber-400/15 text-amber-200 hover:bg-amber-400/15">{weekDefinition.badge}</Badge>
+            <Badge variant="outline">15 questions</Badge>
             {activeWeek.nextWeekId ? (
-              <Badge className="bg-white/10 text-white hover:bg-white/10">Next week unlocks automatically</Badge>
+              <Badge variant="outline">Sequential unlocks</Badge>
             ) : null}
           </div>
-          <div className="space-y-2">
-            <CardTitle className="text-3xl font-semibold tracking-tight">{activeWeek.title}</CardTitle>
-            <CardDescription className="max-w-3xl text-sm leading-7 text-slate-300">
-              {activeWeek.subtitle} {activeWeek.focus}
-            </CardDescription>
-          </div>
+          <CardTitle className="text-2xl font-semibold tracking-tight">{activeWeek.title}</CardTitle>
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Completed</p>
+            <div className="rounded-2xl border border-border/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Completed</p>
               <p className="mt-2 text-3xl font-semibold">{completedCount}/{activeWeek.tasks.length}</p>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Unlock rule</p>
-              <p className="mt-2 text-sm leading-6 text-slate-200">{activeWeek.unlockMessage}</p>
+            <div className="rounded-2xl border border-border/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Unlock rule</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{activeWeek.unlockMessage}</p>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Next status</p>
-              <p className="mt-2 text-sm leading-6 text-slate-200">
+            <div className="rounded-2xl border border-border/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Next status</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {activeWeek.nextWeekId
                   ? nextWeekProgress?.status === "unlocked"
                     ? "Next week unlocked"
@@ -333,7 +351,7 @@ export function SqlWeekWorkspace({ weekId }: { weekId: string }) {
               </p>
             </div>
           </div>
-          <Progress value={progressPercent} className="bg-white/15" />
+          <Progress value={progressPercent} />
           {weekComplete && activeWeek.nextWeekId ? (
             <div className="flex flex-wrap gap-3">
               <Link
@@ -342,7 +360,7 @@ export function SqlWeekWorkspace({ weekId }: { weekId: string }) {
               >
                 {activeWeek.nextWeekLabel}
               </Link>
-              <Link href="/sql" className={cn(buttonVariants({ variant: "outline" }), "inline-flex border-white/20 text-white hover:bg-white/10 hover:text-white")}>
+              <Link href="/sql" className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}>
                 Open SQL level map
               </Link>
             </div>
@@ -445,6 +463,13 @@ export function SqlWeekWorkspace({ weekId }: { weekId: string }) {
                   </p>
                 </div>
               </div>
+              {relatedLesson ? (
+                <div className="rounded-3xl border border-border/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Related week concept</p>
+                  <p className="mt-3 font-medium">{relatedLesson.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{relatedLesson.summary}</p>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 

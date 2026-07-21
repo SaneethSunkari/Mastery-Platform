@@ -1,4 +1,5 @@
-import { LessonView } from "@/components/course/lesson-view";
+import { redirect } from "next/navigation";
+import { getLessonById } from "@/lib/curriculum";
 
 export default async function PySparkLessonPage({
   params,
@@ -6,5 +7,11 @@ export default async function PySparkLessonPage({
   params: Promise<{ lessonId: string }>;
 }) {
   const { lessonId } = await params;
-  return <LessonView courseSlug="pyspark" lessonId={lessonId} />;
+  const lesson = getLessonById(lessonId);
+
+  if (!lesson || lesson.courseSlug !== "pyspark") {
+    redirect("/pyspark");
+  }
+
+  redirect(`/pyspark?week=${lesson.weekId}&lesson=${lesson.id}`);
 }

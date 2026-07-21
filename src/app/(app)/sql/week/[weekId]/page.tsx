@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
 import { SqlWeekWorkspace } from "@/components/sql/sql-week-workspace";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,15 +7,33 @@ import { buttonVariants } from "@/components/ui/button";
 import { getSqlWeekDefinition } from "@/lib/sql-weeks";
 import { sqlWeekOneId, sqlWeekOneUnlockMessage } from "@/lib/sql-week-one";
 import { cn } from "@/lib/utils";
+import { findSqlTaskByQuestionId } from "@/lib/questions/registry";
 
 export default async function SqlWeekPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ weekId: string }>;
+  searchParams: Promise<{ lesson?: string; question?: string }>;
 }) {
   const { weekId } = await params;
+  const resolvedSearchParams = await searchParams;
+  const questionTask = resolvedSearchParams.question
+    ? findSqlTaskByQuestionId(resolvedSearchParams.question)
+    : null;
+
+  if (questionTask && questionTask.weekId !== weekId) {
+    redirect(`/sql/week/${questionTask.weekId}?question=${resolvedSearchParams.question}`);
+  }
+
   if (getSqlWeekDefinition(weekId)) {
-    return <SqlWeekWorkspace weekId={weekId} />;
+    return (
+      <SqlWeekWorkspace
+        weekId={weekId}
+        initialLessonId={resolvedSearchParams.lesson ?? null}
+        initialQuestionId={resolvedSearchParams.question ?? null}
+      />
+    );
   }
 
   return (

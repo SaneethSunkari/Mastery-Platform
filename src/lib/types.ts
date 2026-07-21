@@ -1,6 +1,36 @@
 export type CourseSlug = "sql" | "python" | "pyspark";
 export type ArcadeLanguage = "sql" | "python" | "pyspark";
+export type PracticeTrack = CourseSlug | "arcade";
 export type ProgressStatus = "locked" | "unlocked" | "in_progress" | "completed";
+export type MasteryState =
+  | "not_started"
+  | "reading"
+  | "practiced"
+  | "passed"
+  | "mastered"
+  | "needs_review";
+export type EvidenceType =
+  | "manual-legacy"
+  | "reading"
+  | "sql-runtime"
+  | "python-runtime"
+  | "pyspark-structural"
+  | "pyspark-runtime"
+  | null;
+export type MaterialReadState = "not_started" | "reading" | "completed";
+export type ExerciseGradingMode =
+  | "sql-runtime"
+  | "python-runtime"
+  | "pyspark-structural"
+  | "pyspark-runtime"
+  | "self-review";
+export type MasteryScoreCategory =
+  | "coding"
+  | "assessments"
+  | "projects"
+  | "debugging"
+  | "retention"
+  | "reading";
 
 export interface TimestampedRecord {
   id: string;
@@ -112,10 +142,26 @@ export interface LessonProgressRecord extends TimestampedRecord {
   lessonId: string;
   weekId: string;
   status: ProgressStatus;
+  masteryState: MasteryState;
+  evidenceType: EvidenceType;
   score: number;
   attempts: number;
   timeSpent: number;
   hintsUsed: number;
+  lastOpenedAt: string | null;
+  completedAt: string | null;
+  passedAt?: string | null;
+  readingCompletedAt?: string | null;
+  draftCode?: string;
+  lastFeedback?: string | null;
+  lastSubmissionAt?: string | null;
+}
+
+export interface MaterialLessonProgressRecord extends TimestampedRecord {
+  courseSlug: CourseSlug;
+  lessonId: string;
+  state: MaterialReadState;
+  bookmarked: boolean;
   lastOpenedAt: string | null;
   completedAt: string | null;
 }
@@ -217,6 +263,45 @@ export interface CandyArcadeLevelProgressRecord extends TimestampedRecord {
   sqlCompleted: boolean;
   pythonCompleted: boolean;
   pysparkCompleted: boolean;
+  sqlAttempts: number;
+  pythonAttempts: number;
+  pysparkAttempts: number;
+  sqlPassedAt: string | null;
+  pythonPassedAt: string | null;
+  pysparkPassedAt: string | null;
+  sqlValidatorVersion: number;
+  pythonValidatorVersion: number;
+  pysparkValidatorVersion: number;
+}
+
+export interface MasteryQuestionProgressRecord extends TimestampedRecord {
+  questionId: string;
+  track: CourseSlug;
+  weekNumber: number;
+  positionWithinWeek: number;
+  legacySourceKind: "sql-task" | "lesson";
+  legacySourceId: string;
+  status: ProgressStatus;
+  passed: boolean;
+  score: number;
+  attempts: number;
+  draftCode: string;
+  validationMode: ExerciseGradingMode;
+  validatorVersion: number;
+  lastOpenedAt: string | null;
+  lastRunAt: string | null;
+  lastSubmissionAt: string | null;
+  completedAt: string | null;
+}
+
+export interface LegacyQuestionLinkRecord extends TimestampedRecord {
+  legacyKind: "sql-task" | "lesson" | "arcade-level";
+  legacyId: string;
+  questionId: string;
+  track: PracticeTrack;
+  weekNumber: number | null;
+  positionWithinWeek: number | null;
+  levelNumber: number | null;
 }
 
 export interface ProjectSubmissionRecord extends TimestampedRecord {
@@ -228,10 +313,14 @@ export interface ProjectSubmissionRecord extends TimestampedRecord {
 
 export interface RevisionQueueRecord extends TimestampedRecord {
   courseSlug: CourseSlug;
+  lessonId: string | null;
   topic: string;
   dueAt: string;
   reason: string;
   priority: number;
+  reviewStage?: number;
+  lastReviewedAt?: string | null;
+  lastOutcome?: "pending" | "passed" | "failed";
 }
 
 export interface ErrorLogRecord extends TimestampedRecord {
@@ -288,5 +377,22 @@ export interface DashboardSummary {
   weakTopics: TopicMasteryRecord[];
   strongTopics: TopicMasteryRecord[];
   revisionDue: RevisionQueueRecord[];
+  dueToday: RevisionQueueRecord[];
+  overdue: RevisionQueueRecord[];
+  recentlyMastered: Array<{
+    courseSlug: CourseSlug;
+    lessonId: string;
+    lessonTitle: string;
+    masteryState: MasteryState;
+    passedAt: string | null;
+  }>;
+  recommendedNextLessons: Array<{
+    courseSlug: CourseSlug;
+    lessonId: string;
+    lessonTitle: string;
+    weekId: string;
+  }>;
+  masteryScores: Record<CourseSlug, number>;
+  overallMasteryScore: number;
   recentMistakes: ErrorLogRecord[];
 }

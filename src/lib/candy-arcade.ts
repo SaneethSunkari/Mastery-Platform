@@ -1,4 +1,5 @@
 import { CandyArcadeLevelDefinition } from "@/lib/types";
+import { arcadeValidatorBackedBundleMap } from "@/lib/arcade-bundles";
 
 const stageBands = [
   { label: "Basics", start: 1, end: 500 },
@@ -494,12 +495,12 @@ export const candyArcadeLevels: CandyArcadeLevelDefinition[] = Array.from({ leng
   const theme = themes[index % themes.length];
   const businessContext = businessContexts[index % businessContexts.length];
   const stage = getStageForLevel(levelNumber);
-  const worldNumber = Math.floor(index / 25) + 1;
+  const worldNumber = Math.floor(index / 50) + 1;
   const blueprint =
     challengeBlueprints[theme]?.(businessContext) ??
     challengeBlueprints["selecting the right fields"](businessContext);
 
-  return {
+  const baseLevel: CandyArcadeLevelDefinition = {
     id: `candy-arcade-level-${String(levelNumber).padStart(4, "0")}`,
     levelNumber,
     worldNumber,
@@ -516,6 +517,16 @@ export const candyArcadeLevels: CandyArcadeLevelDefinition[] = Array.from({ leng
     sqlGoal: blueprint.sqlGoal,
     pythonGoal: blueprint.pythonGoal,
     pysparkGoal: blueprint.pysparkGoal,
+  };
+
+  const validatorBackedOverride = arcadeValidatorBackedBundleMap.get(levelNumber);
+  if (!validatorBackedOverride) {
+    return baseLevel;
+  }
+
+  return {
+    ...baseLevel,
+    ...validatorBackedOverride.level,
   };
 });
 
