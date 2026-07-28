@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, Lightbulb, Loader2, Play, Send, Sparkles } from "lucide-react";
 import { applyOutcome } from "@/lib/adaptive/progress";
 import type { EvaluationResult, LearnerQuestion, ScheduleReason, Technology } from "@/lib/adaptive/types";
@@ -8,6 +8,34 @@ import { useAdaptiveProgress } from "@/hooks/use-adaptive-progress";
 import { Button } from "@/components/ui/button";
 
 type QuestionResponse = { question: LearnerQuestion; evaluationToken: string; scheduleReason: ScheduleReason };
+type SessionCache = { current?: QuestionResponse; next?: QuestionResponse; savedAt?: number };
+
+const QUESTION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const sessionCacheKey = (technology: Technology) => `mastery:tutor-cache:v2:${technology}`;
+
+function isQuestionResponse(value: unknown): value is QuestionResponse {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<QuestionResponse>;
+  return typeof item.evaluationToken === "string" && !!item.question && typeof item.question.id === "string" && typeof item.question.starterCode === "string";
+}
+
+function readSessionCache(technology: Technology): SessionCache {
+  if (typeof window === "undefined") return {};
+  try {
+    const key = sessionCacheKey(technology);
+    const value = JSON.parse(window.localStorage.getItem(key) ?? "{}") as SessionCache;
+    if (typeof value.savedAt !== "number" || Date.now() - value.savedAt > QUESTION_CACHE_TTL_MS) {
+      window.localStorage.removeItem(key);
+      return {};
+    }
+    return { ...(isQuestionResponse(value.current) ? { current: value.current } : {}), ...(isQuestionResponse(value.next) ? { next: value.next } : {}) };
+  } catch { return {}; }
+}
+
+function writeSessionCache(technology: Technology, value: SessionCache) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(sessionCacheKey(technology), JSON.stringify({ ...value, savedAt: Date.now() })); } catch { /* Continue without a cache when storage is unavailable. */ }
+}
 
 const labels: Record<Technology, { name: string; accent: string; description: string }> = {
   sql: { name: "SQL", accent: "bg-blue-600", description: "PostgreSQL curriculum · isolated SQLite validation" },
@@ -32,23 +60,72 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [teacherMessage, setTeacherMessage] = useState("");
   const [usedHint, setUsedHint] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [nextReady, setNextReady] = useState(false);
+  const [prefetchRevision, setPrefetchRevision] = useState(0);
+  const initializationStarted = useRef(false);
+  const prefetchRequestId = useRef(0);
+  const prefetchKey = useRef("");
+  const prefetchPromise = useRef<Promise<QuestionResponse> | null>(null);
   const meta = labels[technology];
 
   const nextQuestion = useCallback(async () => {
     if (!ready) return;
     setBusy("generate"); setError(""); setRuntime(null); setEvaluation(null); setTeacherMessage(""); setUsedHint(false);
     try {
-      const result = await postJson<QuestionResponse>("/api/tutor/generate", { technology, progress });
+      const cache = readSessionCache(technology);
+      const pending = prefetchPromise.current;
+      const result = cache.next ?? (pending ? await pending : await postJson<QuestionResponse>("/api/tutor/generate", { technology, progress }));
+      prefetchRequestId.current += 1;
+      prefetchPromise.current = null;
+      prefetchKey.current = "";
+      writeSessionCache(technology, { current: result });
+      setNextReady(false);
       setSession(result); setCode(result.question.starterCode);
     } catch (cause) { setSession(null); setError(cause instanceof Error ? cause.message : "Question generation failed."); }
     finally { setBusy(null); }
   }, [progress, ready, technology]);
 
   useEffect(() => {
-    if (!ready || session || error || busy) return;
-    const timer = window.setTimeout(() => void nextQuestion(), 0);
+    if (!ready || initializationStarted.current) return;
+    initializationStarted.current = true;
+    const timer = window.setTimeout(() => {
+      const cached = readSessionCache(technology);
+      if (cached.current) {
+        setSession(cached.current);
+        setCode(cached.current.question.starterCode);
+        setNextReady(!!cached.next);
+        setInitialized(true);
+        return;
+      }
+      setInitialized(true);
+      void nextQuestion();
+    }, 0);
     return () => window.clearTimeout(timer);
-  }, [ready, session, error, busy, nextQuestion]);
+  }, [nextQuestion, ready, technology]);
+
+  useEffect(() => {
+    if (!ready || !session) return;
+    const cached = readSessionCache(technology);
+    if (cached.next) return;
+    const requestKey = `${session.question.id}:${prefetchRevision}`;
+    if (prefetchKey.current === requestKey) return;
+    prefetchKey.current = requestKey;
+    const requestId = ++prefetchRequestId.current;
+    const recentFingerprints = [...progress.recentFingerprints, session.question.fingerprint].slice(-60);
+    const promise = postJson<QuestionResponse>("/api/tutor/generate", { technology, progress: { ...progress, recentFingerprints } });
+    prefetchPromise.current = promise;
+    void promise.then((result) => {
+      if (prefetchRequestId.current !== requestId) return;
+      const current = readSessionCache(technology).current ?? session;
+      writeSessionCache(technology, { current, next: result });
+      setNextReady(true);
+    }).catch(() => {
+      if (prefetchRequestId.current === requestId) setNextReady(false);
+    }).finally(() => {
+      if (prefetchPromise.current === promise) prefetchPromise.current = null;
+    });
+  }, [prefetchRevision, progress, ready, session, technology]);
 
   const run = async () => {
     if (!session) return;
@@ -64,7 +141,15 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
     try {
       const result = await postJson<EvaluationResult>("/api/tutor/evaluate", { evaluationToken: session.evaluationToken, code });
       setEvaluation(result);
-      setProgress((current) => applyOutcome(current, { technology, curriculumNodeId: session.question.curriculumNodeId, dimensions: session.question.skillDimensions, evaluation: result, usedHint, review: session.scheduleReason === "review", interview: session.scheduleReason === "interview", fingerprint: session.question.fingerprint }));
+      const updatedProgress = applyOutcome(progress, { technology, curriculumNodeId: session.question.curriculumNodeId, dimensions: session.question.skillDimensions, evaluation: result, usedHint, review: session.scheduleReason === "review", interview: session.scheduleReason === "interview", fingerprint: session.question.fingerprint });
+      setProgress(updatedProgress);
+      prefetchRequestId.current += 1;
+      prefetchPromise.current = null;
+      prefetchKey.current = "";
+      const cache = readSessionCache(technology);
+      writeSessionCache(technology, { current: cache.current ?? session });
+      setNextReady(false);
+      setPrefetchRevision((value) => value + 1);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Submission failed."); }
     finally { setBusy(null); }
   };
@@ -79,7 +164,7 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
 
   const schemaText = useMemo(() => session?.question.schema ? JSON.stringify(session.question.schema, null, 2) : "No input schema is required.", [session]);
 
-  if (!ready || busy === "generate") return <LoadingState label={`Preparing your next ${meta.name} question…`} />;
+  if (!ready || !initialized || busy === "generate") return <LoadingState label={`Preparing your next ${meta.name} question…`} />;
   if (!session) return <ConfigurationState error={error} retry={nextQuestion} />;
   const question = session.question;
 
@@ -109,7 +194,7 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
         </section>
 
         <section className="flex min-h-[680px] min-w-0 flex-col overflow-hidden rounded-xl border border-slate-800 bg-[#0d1117] shadow-sm lg:min-h-0">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3"><span className="font-mono text-xs text-slate-300">Code · solution.{technology === "sql" ? "sql" : "py"}</span><span className="text-xs text-slate-500">{question.subtopic}</span></div>
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3"><span className="font-mono text-xs text-slate-300">Code · solution.{technology === "sql" ? "sql" : "py"}</span><span className={nextReady ? "text-xs text-emerald-400" : "text-xs text-slate-500"}>{nextReady ? "Next question ready" : "Preparing next question…"}</span></div>
           <textarea aria-label={`${meta.name} code editor`} value={code} onChange={(event) => setCode(event.target.value)} spellCheck={false} className="min-h-[320px] w-full flex-1 resize-none bg-transparent p-5 font-mono text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600" />
           <div className="flex flex-wrap gap-2 border-y border-white/10 bg-[#11161d] p-3">
             <Button onClick={run} disabled={!!busy} className="bg-white text-slate-950 hover:bg-slate-200"><Play className="size-4" />Run</Button>
