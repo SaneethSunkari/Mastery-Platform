@@ -3,6 +3,24 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  async redirects() {
+    return [
+      "/materials/:path*",
+      "/settings",
+      "/interview",
+      "/notes",
+      "/practice",
+      "/projects",
+      "/revision",
+      "/progress",
+      "/sql/week/:path*",
+      "/sql/lesson/:path*",
+      "/python/week/:path*",
+      "/python/lesson/:path*",
+      "/pyspark/week/:path*",
+      "/pyspark/lesson/:path*",
+    ].map((source) => ({ source, destination: "/dashboard", permanent: false }));
+  },
   outputFileTracingIncludes: {
     "/api/pyspark/run": ["./runtime/pyspark_runner.py"],
   },

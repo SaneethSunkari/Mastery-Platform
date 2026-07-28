@@ -49,19 +49,19 @@
 }
 
 :root {
-  --background: oklch(0.992 0.012 92.2);
+  --background: oklch(0.985 0.004 247);
   --foreground: oklch(0.215 0.02 258);
-  --card: oklch(1 0.01 92.2 / 88%);
+  --card: oklch(1 0 0);
   --card-foreground: oklch(0.215 0.02 258);
   --popover: oklch(1 0.01 92.2);
   --popover-foreground: oklch(0.215 0.02 258);
-  --primary: oklch(0.34 0.06 250);
+  --primary: oklch(0.24 0.03 255);
   --primary-foreground: oklch(0.99 0.01 92.2);
   --secondary: oklch(0.964 0.012 92.2);
   --secondary-foreground: oklch(0.25 0.02 258);
   --muted: oklch(0.965 0.01 92.2);
   --muted-foreground: oklch(0.53 0.02 258);
-  --accent: oklch(0.945 0.02 90.5);
+  --accent: oklch(0.96 0.008 247);
   --accent-foreground: oklch(0.25 0.02 258);
   --destructive: oklch(0.58 0.22 27.3);
   --border: oklch(0.89 0.012 92.2);
@@ -132,5 +132,11 @@
   h3,
   h4 {
     @apply font-heading;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.16em] text-slate-400;
   }
 }

@@ -1,5 +1,5 @@
-import { CourseGameMap } from "@/components/game/course-game-map";
+import { LearningWorkspace } from "@/components/adaptive/learning-workspace";
 
 export default function SqlPage() {
-  return <CourseGameMap courseSlug="sql" />;
+  return <LearningWorkspace technology="sql" />;
 }

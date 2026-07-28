@@ -15,8 +15,21 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mastery Stack",
-  description: "Local-first SQL and Python mastery platform",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://mastery-platform.onrender.com"),
+  title: "Mastery — Adaptive AI Coding Tutor",
+  description: "Focused, adaptive practice for SQL, Python, and PySpark.",
+  openGraph: {
+    title: "Mastery",
+    description: "Adaptive practice for SQL, Python & PySpark",
+    type: "website",
+    images: [{ url: "/og.png", width: 1729, height: 910, alt: "Mastery adaptive coding tutor" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Mastery",
+    description: "Adaptive practice for SQL, Python & PySpark",
+    images: ["/og.png"],
+  },
 };
 
 const rootClassName = `${spaceGrotesk.variable} ${ibmPlexMono.variable} h-full antialiased`;
@@ -27,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${rootClassName} dark`} suppressHydrationWarning>
+    <html lang="en" className={rootClassName} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         <AppProviders>{children}</AppProviders>
       </body>

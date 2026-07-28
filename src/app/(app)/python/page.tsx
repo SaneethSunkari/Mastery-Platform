@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { PythonWeekOneWorkspace } from "@/components/course/python-week-one-workspace";
+import { LearningWorkspace } from "@/components/adaptive/learning-workspace";
 
 export default function PythonPage() {
-  return (
-    <Suspense fallback={<div className="text-sm text-muted-foreground">Loading Python workspace...</div>}>
-      <PythonWeekOneWorkspace />
-    </Suspense>
-  );
+  return <LearningWorkspace technology="python" />;
 }

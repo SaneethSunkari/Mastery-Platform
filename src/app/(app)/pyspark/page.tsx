@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { PysparkWeekOneWorkspace } from "@/components/course/pyspark-week-one-workspace";
+import { LearningWorkspace } from "@/components/adaptive/learning-workspace";
 
 export default function PySparkPage() {
-  return (
-    <Suspense fallback={<div className="text-sm text-muted-foreground">Loading PySpark workspace...</div>}>
-      <PysparkWeekOneWorkspace />
-    </Suspense>
-  );
+  return <LearningWorkspace technology="pyspark" />;
 }
