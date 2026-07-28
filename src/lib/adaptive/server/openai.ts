@@ -53,13 +53,13 @@ export async function requestStructuredJson<T>(name: string, prompt: string, sch
 }
 
 const stringArray = { type: "array", items: { type: "string" } };
-const anyJson = { type: ["object", "array", "string", "number", "boolean", "null"] };
-const testCase = { type: "object", additionalProperties: false, properties: { description: { type: "string" }, input: anyJson, expected: anyJson }, required: ["description", "input", "expected"] };
+const jsonString = { type: "string", description: "A valid JSON-encoded value." };
+const testCase = { type: "object", additionalProperties: false, properties: { description: { type: "string" }, input: jsonString, expected: jsonString }, required: ["description", "input", "expected"] };
 
 export const questionSchema: JsonSchema = {
   type: "object", additionalProperties: false,
   properties: {
-    id: { type: "string" }, technology: { enum: ["sql", "python", "pyspark", "arcade"] }, curriculumNodeId: { type: "string" }, topic: { type: "string" }, subtopic: { type: "string" }, difficulty: { type: "integer", minimum: 1, maximum: 5 }, title: { type: "string" }, scenario: { type: "string" }, prompt: { type: "string" }, schema: anyJson, sampleData: anyJson, expectedBehavior: stringArray, hiddenTests: { type: "array", items: testCase }, referenceSolution: { type: "string" }, starterCode: { type: "string" }, rubric: stringArray, skillDimensions: stringArray,
+    id: { type: "string" }, technology: { enum: ["sql", "python", "pyspark", "arcade"] }, curriculumNodeId: { type: "string" }, topic: { type: "string" }, subtopic: { type: "string" }, difficulty: { type: "integer", minimum: 1, maximum: 5 }, title: { type: "string" }, scenario: { type: "string" }, prompt: { type: "string" }, schema: jsonString, sampleData: jsonString, expectedBehavior: stringArray, hiddenTests: { type: "array", items: testCase }, referenceSolution: { type: "string" }, starterCode: { type: "string" }, rubric: stringArray, skillDimensions: stringArray,
     fingerprint: { type: "object", additionalProperties: false, properties: { technology: { type: "string" }, topic: { type: "string" }, subtopic: { type: "string" }, pattern: { type: "string" }, scenario: { type: "string" }, difficulty: { type: "integer" }, skills: stringArray, schemaSignature: { type: "string" } }, required: ["technology", "topic", "subtopic", "pattern", "scenario", "difficulty", "skills", "schemaSignature"] },
     runtime: { type: "object", additionalProperties: false, properties: { setupSql: { type: ["string", "null"] }, functionName: { type: ["string", "null"] }, visibleTests: { type: ["array", "null"], items: testCase }, pysparkQuestionId: { type: ["string", "null"] } }, required: ["setupSql", "functionName", "visibleTests", "pysparkQuestionId"] },
   },

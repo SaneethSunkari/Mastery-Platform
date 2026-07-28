@@ -9,14 +9,31 @@ import { assistanceSchema, evaluationSchema, questionSchema, requestStructuredJs
 import { isEvaluationContent, isGeneratedQuestion } from "@/lib/adaptive/server/validation";
 import type { EvaluationResult, GeneratedQuestion, LearnerQuestion, ProgressState, Technology } from "@/lib/adaptive/types";
 
+function decodeJson(value: unknown) {
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value) as unknown; } catch { return value; }
+}
+
+function decodeTests(value: unknown) {
+  if (!Array.isArray(value)) return value;
+  return value.map((test) => {
+    if (!test || typeof test !== "object") return test;
+    const item = test as { description?: unknown; input?: unknown; expected?: unknown };
+    return { ...item, input: decodeJson(item.input), expected: decodeJson(item.expected) };
+  });
+}
+
 function cleanQuestion(question: GeneratedQuestion): GeneratedQuestion {
   const runtimeValue = question.runtime as GeneratedQuestion["runtime"] & Record<string, unknown>;
   return {
     ...question,
+    schema: decodeJson(question.schema),
+    sampleData: decodeJson(question.sampleData),
+    hiddenTests: decodeTests(question.hiddenTests) as GeneratedQuestion["hiddenTests"],
     runtime: runtimeValue ? {
       ...(typeof runtimeValue.setupSql === "string" ? { setupSql: runtimeValue.setupSql } : {}),
       ...(typeof runtimeValue.functionName === "string" ? { functionName: runtimeValue.functionName } : {}),
-      ...(Array.isArray(runtimeValue.visibleTests) ? { visibleTests: runtimeValue.visibleTests } : {}),
+      ...(Array.isArray(runtimeValue.visibleTests) ? { visibleTests: decodeTests(runtimeValue.visibleTests) as NonNullable<GeneratedQuestion["runtime"]>["visibleTests"] } : {}),
       ...(typeof runtimeValue.pysparkQuestionId === "string" ? { pysparkQuestionId: runtimeValue.pysparkQuestionId } : {}),
     } : undefined,
   };

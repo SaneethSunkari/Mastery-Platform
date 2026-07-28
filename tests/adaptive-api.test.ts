@@ -73,6 +73,29 @@ describe("adaptive AI endpoints", () => {
     expect((await response.json()).code).toBe("INVALID_RESPONSE");
   });
 
+  it("uses strict-compatible JSON strings for model-generated data", async () => {
+    const { questionSchema } = await import("@/lib/adaptive/server/openai");
+    const properties = questionSchema.properties as Record<string, { type?: unknown }>;
+    expect(properties.schema.type).toBe("string");
+    expect(properties.sampleData.type).toBe("string");
+
+    const encoded = {
+      ...generated,
+      schema: JSON.stringify(generated.schema),
+      sampleData: JSON.stringify(generated.sampleData),
+      hiddenTests: [{ description: "hidden row", input: "null", expected: "null" }],
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => providerResponse(encoded)));
+    const { POST } = await import("@/app/api/tutor/generate/route");
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: emptyProgress() }) }));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.question.schema).toEqual(generated.schema);
+    expect(body.question.sampleData).toEqual(generated.sampleData);
+    const { openQuestion } = await import("@/lib/adaptive/server/secure-token");
+    expect(openQuestion(body.evaluationToken).hiddenTests[0]).toMatchObject({ input: null, expected: null });
+  });
+
   it("evaluates SQL with runtime evidence before teacher feedback", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => providerResponse({ verdict: "correct", score: 95, doneWell: ["Correct predicate"], improvements: [], mistakeClassification: "none", explanation: "The query filters invalid rows.", suggestedNextAction: "Try null validity flags." })));
     const { sealQuestion } = await import("@/lib/adaptive/server/secure-token");
