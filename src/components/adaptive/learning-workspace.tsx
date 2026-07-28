@@ -84,42 +84,43 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
   const question = session.question;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-3 flex items-center gap-2"><span className={`size-2.5 rounded-full ${meta.accent}`} /><span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{meta.name} · adaptive practice</span></div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{question.title}</h1>
-          <p className="mt-2 text-sm text-slate-500">{meta.description}</p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-600"><Tag>{question.topic}</Tag><Tag>{question.subtopic}</Tag><Tag>Difficulty {question.difficulty}/5</Tag></div>
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-        <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-          <div><p className="eyebrow">Question</p><p className="mt-3 text-base leading-7 text-slate-700">{question.prompt}</p></div>
-          <InfoBlock title="Input schema or sample data" content={schemaText} />
-          {question.sampleData ? <InfoBlock title="Sample data" content={JSON.stringify(question.sampleData, null, 2)} /> : null}
-          <div><p className="eyebrow">Expected output rules</p><ul className="mt-3 space-y-2">{question.expectedBehavior.map((rule) => <li key={rule} className="flex gap-2 text-sm leading-6 text-slate-600"><CheckCircle2 className="mt-1 size-4 shrink-0 text-slate-400" />{rule}</li>)}</ul></div>
-        </section>
-
-        <section className="overflow-hidden rounded-3xl border border-slate-800 bg-[#0d1117] shadow-xl shadow-slate-950/10">
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-3"><span className="font-mono text-xs text-slate-400">solution.{technology === "sql" ? "sql" : "py"}</span><span className="text-xs text-slate-500">One question at a time</span></div>
-          <textarea aria-label={`${meta.name} code editor`} value={code} onChange={(event) => setCode(event.target.value)} spellCheck={false} className="min-h-[390px] w-full resize-y bg-transparent p-5 font-mono text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600" />
-          <div className="flex flex-wrap gap-2 border-t border-white/10 p-4">
-            <Button onClick={run} disabled={!!busy} className="bg-white text-slate-950 hover:bg-slate-200"><Play className="size-4" />Run</Button>
-            <Button onClick={submit} disabled={!!busy} className="bg-blue-600 text-white hover:bg-blue-500"><Send className="size-4" />Submit</Button>
-            <Button onClick={() => assist("hint")} disabled={!!busy} variant="outline" className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white"><Lightbulb className="size-4" />Hint</Button>
-            <Button onClick={() => assist("explain")} disabled={!!busy} variant="outline" className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white"><Sparkles className="size-4" />Explain</Button>
-            <Button onClick={nextQuestion} disabled={!!busy} variant="ghost" className="ml-auto text-slate-300 hover:bg-white/10 hover:text-white">Next question<ArrowRight className="size-4" /></Button>
+    <div className="coding-workspace bg-slate-200/70 p-2">
+      <div className="mx-auto grid h-full max-w-[1800px] gap-2 lg:grid-cols-[minmax(340px,44%)_minmax(0,56%)]">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className={`size-2 rounded-full ${meta.accent}`} />
+              <span className="text-sm font-semibold text-slate-800">Problem</span>
+              <span className="text-xs text-slate-400">{meta.name}</span>
+            </div>
+            <Tag>Difficulty {question.difficulty}/5</Tag>
+          </div>
+          <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-7 lg:overscroll-contain">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{question.title}</h1>
+              <p className="mt-2 text-xs text-slate-500">{meta.description}</p>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-600"><Tag>{question.topic}</Tag><Tag>{question.subtopic}</Tag></div>
+            </div>
+            <div><p className="eyebrow">Description</p><p className="mt-3 text-[15px] leading-7 text-slate-700">{question.prompt}</p></div>
+            <InfoBlock title="Input schema" content={schemaText} />
+            {question.sampleData ? <InfoBlock title="Example" content={JSON.stringify(question.sampleData, null, 2)} /> : null}
+            <div><p className="eyebrow">Expected output</p><ul className="mt-3 space-y-2.5">{question.expectedBehavior.map((rule) => <li key={rule} className="flex gap-2.5 text-sm leading-6 text-slate-600"><CheckCircle2 className="mt-1 size-4 shrink-0 text-emerald-500" />{rule}</li>)}</ul></div>
           </div>
         </section>
-      </div>
 
-      {busy ? <InlineLoading label={busy === "submit" ? "Running hidden checks and asking the AI teacher…" : busy === "run" ? "Running your code…" : "Preparing targeted guidance…"} /> : null}
-      {error ? <Notice tone="error" title="Something needs attention" body={error} /> : null}
-      {runtime ? <Notice tone={runtime.passed ? "success" : "neutral"} title={runtime.mode === "structural" ? "Structurally evaluated" : runtime.passed ? "Runtime passed" : "Runtime result"} body={runtime.summary} /> : null}
-      {teacherMessage ? <Notice tone="neutral" title="AI teacher" body={teacherMessage} /> : null}
-      {evaluation ? <Feedback evaluation={evaluation} /> : null}
+        <section className="flex min-h-[680px] min-w-0 flex-col overflow-hidden rounded-xl border border-slate-800 bg-[#0d1117] shadow-sm lg:min-h-0">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3"><span className="font-mono text-xs text-slate-300">Code · solution.{technology === "sql" ? "sql" : "py"}</span><span className="text-xs text-slate-500">{question.subtopic}</span></div>
+          <textarea aria-label={`${meta.name} code editor`} value={code} onChange={(event) => setCode(event.target.value)} spellCheck={false} className="min-h-[320px] w-full flex-1 resize-none bg-transparent p-5 font-mono text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600" />
+          <div className="flex flex-wrap gap-2 border-y border-white/10 bg-[#11161d] p-3">
+            <Button onClick={run} disabled={!!busy} className="bg-white text-slate-950 hover:bg-slate-200"><Play className="size-4" />Run</Button>
+            <Button onClick={submit} disabled={!!busy} className="bg-emerald-600 text-white hover:bg-emerald-500"><Send className="size-4" />Submit</Button>
+            <Button onClick={() => assist("hint")} disabled={!!busy} variant="outline" className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white"><Lightbulb className="size-4" />Hint</Button>
+            <Button onClick={() => assist("explain")} disabled={!!busy} variant="outline" className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white"><Sparkles className="size-4" />Explain</Button>
+            <Button onClick={nextQuestion} disabled={!!busy} variant="ghost" className="ml-auto text-slate-300 hover:bg-white/10 hover:text-white">Next<ArrowRight className="size-4" /></Button>
+          </div>
+          <WorkspaceResults busy={busy} error={error} runtime={runtime} teacherMessage={teacherMessage} evaluation={evaluation} />
+        </section>
+      </div>
     </div>
   );
 }
@@ -127,9 +128,14 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
 function Tag({ children }: { children: React.ReactNode }) { return <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">{children}</span>; }
 function InfoBlock({ title, content }: { title: string; content: string }) { return <div><p className="eyebrow">{title}</p><pre className="mt-3 max-h-52 overflow-auto rounded-2xl bg-slate-50 p-4 font-mono text-xs leading-5 text-slate-600">{content}</pre></div>; }
 function LoadingState({ label }: { label: string }) { return <div className="grid min-h-[55vh] place-items-center"><div className="text-center"><Loader2 className="mx-auto size-6 animate-spin text-blue-600" /><p className="mt-4 text-sm text-slate-500">{label}</p></div></div>; }
-function InlineLoading({ label }: { label: string }) { return <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800"><Loader2 className="size-4 animate-spin" />{label}</div>; }
 function ConfigurationState({ error, retry }: { error: string; retry: () => void }) { return <div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center"><AlertCircle className="mx-auto size-7 text-amber-600" /><h1 className="mt-4 text-xl font-semibold text-slate-950">AI teacher configuration required</h1><p className="mt-2 text-sm leading-6 text-slate-600">{error || "The AI teacher is unavailable."}</p><Button onClick={retry} className="mt-5">Try again</Button></div>; }
-function Notice({ tone, title, body }: { tone: "error" | "success" | "neutral"; title: string; body: string }) { const styles = tone === "error" ? "border-red-200 bg-red-50 text-red-900" : tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-800"; return <div className={`rounded-2xl border p-5 ${styles}`}><p className="text-sm font-semibold">{title}</p><p className="mt-1 text-sm leading-6 opacity-80">{body}</p></div>; }
-function Feedback({ evaluation }: { evaluation: EvaluationResult }) { return <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="eyebrow">Submission feedback</p><h2 className="mt-2 text-2xl font-semibold capitalize text-slate-950">{evaluation.verdict.replace("-", " ")}</h2></div><span className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">{evaluation.score}/100</span></div><div className="mt-6 grid gap-5 md:grid-cols-2"><FeedbackList title="What was done well" items={evaluation.doneWell} /><FeedbackList title="What needs improvement" items={evaluation.improvements} /></div><div className="mt-5 grid gap-4 md:grid-cols-2"><FeedbackText title="Exact mistake classification" text={evaluation.mistakeClassification} /><FeedbackText title="Runtime or validator result" text={evaluation.runtimeResult} /><FeedbackText title="Teacher explanation" text={evaluation.explanation} /><FeedbackText title="Suggested next action" text={evaluation.suggestedNextAction} /></div></section>; }
-function FeedbackList({ title, items }: { title: string; items: string[] }) { return <div><p className="eyebrow">{title}</p><ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">{items.length ? items.map((item) => <li key={item}>• {item}</li>) : <li>—</li>}</ul></div>; }
-function FeedbackText({ title, text }: { title: string; text: string }) { return <div className="rounded-2xl bg-slate-50 p-4"><p className="eyebrow">{title}</p><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></div>; }
+
+function WorkspaceResults({ busy, error, runtime, teacherMessage, evaluation }: { busy: string | null; error: string; runtime: { passed: boolean; mode: string; summary: string } | null; teacherMessage: string; evaluation: EvaluationResult | null }) {
+  const hasContent = busy || error || runtime || teacherMessage || evaluation;
+  return <div className="min-h-40 max-h-[42%] overflow-y-auto bg-[#11161d] p-4 text-slate-200 lg:overscroll-contain"><div className="mb-3 flex items-center justify-between"><p className="text-xs font-semibold text-slate-300">Test result & feedback</p>{evaluation ? <span className={`rounded-md px-2 py-1 text-xs font-semibold ${evaluation.verdict === "correct" ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>{evaluation.score}/100</span> : null}</div>{!hasContent ? <p className="text-sm text-slate-500">Run your code to see results here.</p> : null}{busy ? <div className="flex items-center gap-2 text-sm text-blue-300"><Loader2 className="size-4 animate-spin" />{busy === "submit" ? "Running hidden checks and asking the AI teacher…" : busy === "run" ? "Running your code…" : "Preparing targeted guidance…"}</div> : null}{error ? <ResultNotice tone="error" title="Something needs attention" body={error} /> : null}{runtime ? <ResultNotice tone={runtime.passed ? "success" : "neutral"} title={runtime.mode === "structural" ? "Structurally evaluated" : runtime.passed ? "Runtime passed" : "Runtime result"} body={runtime.summary} /> : null}{teacherMessage ? <ResultNotice tone="neutral" title="AI teacher" body={teacherMessage} /> : null}{evaluation ? <EvaluationPanel evaluation={evaluation} /> : null}</div>;
+}
+
+function ResultNotice({ tone, title, body }: { tone: "error" | "success" | "neutral"; title: string; body: string }) { const styles = tone === "error" ? "border-red-400/20 bg-red-400/10 text-red-200" : tone === "success" ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" : "border-white/10 bg-white/5 text-slate-200"; return <div className={`mb-3 rounded-lg border p-3 ${styles}`}><p className="text-xs font-semibold">{title}</p><p className="mt-1 text-xs leading-5 opacity-80">{body}</p></div>; }
+function EvaluationPanel({ evaluation }: { evaluation: EvaluationResult }) { return <div className="space-y-4"><h2 className="text-lg font-semibold capitalize text-white">{evaluation.verdict.replace("-", " ")}</h2><div className="grid gap-4 xl:grid-cols-2"><FeedbackList title="What was done well" items={evaluation.doneWell} /><FeedbackList title="What needs improvement" items={evaluation.improvements} /></div><div className="grid gap-3 xl:grid-cols-2"><FeedbackText title="Mistake classification" text={evaluation.mistakeClassification} /><FeedbackText title="Runtime or validator" text={evaluation.runtimeResult} /><FeedbackText title="Teacher explanation" text={evaluation.explanation} /><FeedbackText title="Suggested next action" text={evaluation.suggestedNextAction} /></div></div>; }
+function FeedbackList({ title, items }: { title: string; items: string[] }) { return <div><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{title}</p><ul className="mt-2 space-y-1 text-xs leading-5 text-slate-300">{items.length ? items.map((item) => <li key={item}>• {item}</li>) : <li>—</li>}</ul></div>; }
+function FeedbackText({ title, text }: { title: string; text: string }) { return <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{title}</p><p className="mt-1.5 text-xs leading-5 text-slate-300">{text}</p></div>; }

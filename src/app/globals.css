@@ -140,3 +140,16 @@
     @apply text-xs font-semibold uppercase tracking-[0.16em] text-slate-400;
   }
 }
+
+@media (min-width: 1024px) {
+  .app-main:has(.coding-workspace) {
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .coding-workspace {
+    position: fixed;
+    inset: 3.5rem 0 0;
+  }
+}

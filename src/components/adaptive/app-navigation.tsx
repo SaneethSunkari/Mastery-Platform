@@ -16,8 +16,8 @@ const items = [
 export function AppNavigation() {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f8fafc]/92 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center gap-5 px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-30 shrink-0 border-b border-slate-200/80 bg-[#f8fafc]/92 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-5 px-4 sm:px-6">
         <Link href="/dashboard" className="mr-auto flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-950" aria-label="Mastery home">
           <span className="grid size-8 place-items-center rounded-xl bg-slate-950 font-mono text-xs text-white">M</span>
           <span className="hidden sm:inline">Mastery</span>
