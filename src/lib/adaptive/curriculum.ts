@@ -131,11 +131,22 @@ function expand(technology: Technology, blueprints: CategoryBlueprint[]) {
   );
 }
 
-export const curriculum: CurriculumNode[] = [
+const baseCurriculum: CurriculumNode[] = [
   ...expand("sql", sqlBlueprints),
   ...expand("python", pythonBlueprints),
   ...expand("pyspark", pysparkBlueprints),
 ];
+
+const prerequisiteOverrides: Record<string, string[]> = {
+  "sql-offset-functions-lag": ["sql-foundations-select", "sql-sorting-and-pagination-order-by", "sql-window-fundamentals-over", "sql-window-fundamentals-partition-by"],
+  "sql-aggregate-window-functions-moving-averages": ["sql-aggregation-group-by", "sql-window-fundamentals-over", "sql-window-fundamentals-rows"],
+  "sql-advanced-analytical-patterns-anomaly-detection": ["sql-aggregate-window-functions-moving-averages", "sql-null-handling-is-null", "sql-filtering-comparison-operators", "sql-common-table-expressions-basic-cte"],
+  "python-data-engineering-etl": ["python-foundations-variables", "python-foundations-conditions", "python-foundations-loops", "python-collections-dictionaries", "python-functions-parameters"],
+  "pyspark-window-functions-window": ["pyspark-selection-and-expressions-select", "pyspark-filtering-filter", "pyspark-aggregations-groupby"],
+  "pyspark-performance-adaptive-query-execution": ["pyspark-architecture-dags", "pyspark-partitioning-repartition", "pyspark-joins-join-strategies"],
+};
+
+export const curriculum: CurriculumNode[] = baseCurriculum.map((node) => ({ ...node, prerequisites: prerequisiteOverrides[node.id] ?? node.prerequisites }));
 
 export const curriculumByTechnology = (technology: Technology) => curriculum.filter((node) => node.technology === technology);
 export const curriculumById = new Map(curriculum.map((node) => [node.id, node]));

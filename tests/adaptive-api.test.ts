@@ -1,30 +1,54 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { curriculumById } from "@/lib/adaptive/curriculum";
 import { emptyProgress } from "@/lib/adaptive/progress";
-import type { GeneratedQuestion } from "@/lib/adaptive/types";
+import type { GeneratedQuestion, Technology } from "@/lib/adaptive/types";
 
 vi.mock("server-only", () => ({}));
 
-const generated = {
-  id: "model-id",
-  technology: "sql",
-  curriculumNodeId: "ignored",
-  topic: "Ignored",
-  subtopic: "Ignored",
-  difficulty: 2,
-  title: "Latest valid order",
-  scenario: "Order operations",
-  prompt: "Return every valid order.",
-  schema: { orders: ["id", "valid"] },
-  sampleData: [{ id: 1, valid: 1 }],
-  expectedBehavior: ["Return id 1"],
-  hiddenTests: [{ description: "hidden row", input: null, expected: null }],
-  referenceSolution: "SELECT id FROM orders WHERE valid = 1",
-  starterCode: "SELECT\n  -- write your query",
-  rubric: ["Correct rows"],
-  skillDimensions: ["filtering"],
-  fingerprint: { technology: "sql", topic: "Filtering", subtopic: "WHERE", pattern: "valid rows", scenario: "Order operations", difficulty: 2, skills: ["filtering"], schemaSignature: "orders(id,valid)" },
-  runtime: { setupSql: "CREATE TABLE orders(id INTEGER, valid INTEGER); INSERT INTO orders VALUES (1,1),(2,0);", functionName: null, visibleTests: null, pysparkQuestionId: null },
+const diagnosticNodes: Record<Technology, string> = {
+  sql: "sql-foundations-select",
+  python: "python-foundations-variables",
+  pyspark: "pyspark-dataframe-creation-lists",
 };
+
+function generatedFor(technology: Technology): GeneratedQuestion {
+  const node = curriculumById.get(diagnosticNodes[technology])!;
+  const starterCode = technology === "sql"
+    ? "-- Write your query here"
+    : technology === "python"
+      ? "def summarize_batch(rows):\n    pass"
+      : "# Write your transformation here\nresult_df = None";
+  const referenceSolution = technology === "sql"
+    ? "SELECT id FROM orders WHERE valid = 1"
+    : technology === "python"
+      ? "def summarize_batch(rows):\n    return len(rows)"
+      : "result_df = spark.createDataFrame([(1,)], ['id'])";
+  return {
+    id: "model-id",
+    technology,
+    curriculumNodeId: node.id,
+    topic: node.topic,
+    subtopic: node.subtopic,
+    difficulty: 1,
+    exerciseMode: "write_from_scratch",
+    prerequisiteIds: [...node.prerequisites],
+    diagnosticQuestion: true,
+    learnerInstructions: "Write the complete solution from scratch.",
+    title: "Starter diagnostic",
+    scenario: "Order operations",
+    prompt: technology === "sql" ? "Return the order identifiers." : "Complete the requested beginner task.",
+    schema: { orders: ["id", "valid"] },
+    sampleData: [{ id: 1, valid: 1 }],
+    expectedBehavior: ["Return the expected result"],
+    hiddenTests: [{ description: "hidden row", input: null, expected: null }],
+    referenceSolution,
+    starterCode,
+    rubric: ["Correct output"],
+    skillDimensions: [...node.skillDimensions],
+    fingerprint: { technology, topic: node.topic, subtopic: node.subtopic, pattern: "starter diagnostic", scenario: "Order operations", difficulty: 1, skills: [...node.skillDimensions], schemaSignature: "orders(id,valid)" },
+    runtime: { setupSql: "CREATE TABLE orders(id INTEGER, valid INTEGER); INSERT INTO orders VALUES (1,1),(2,0);", functionName: technology === "python" ? "summarize_batch" : undefined, visibleTests: undefined, pysparkQuestionId: undefined },
+  };
+}
 
 function providerResponse(value: unknown) {
   return new Response(JSON.stringify({ output_text: JSON.stringify(value) }), { status: 200, headers: { "content-type": "application/json" } });
@@ -43,7 +67,7 @@ describe("adaptive AI endpoints", () => {
   });
 
   it.each(["sql", "python", "pyspark"])("generates a protected %s question", async (technology) => {
-    vi.stubGlobal("fetch", vi.fn(async () => providerResponse({ ...generated, technology })));
+    vi.stubGlobal("fetch", vi.fn(async () => providerResponse(generatedFor(technology as Technology))));
     const { POST } = await import("@/app/api/tutor/generate/route");
     const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology, progress: emptyProgress() }) }));
     const body = await response.json();
@@ -79,6 +103,7 @@ describe("adaptive AI endpoints", () => {
     expect(properties.schema.type).toBe("string");
     expect(properties.sampleData.type).toBe("string");
 
+    const generated = generatedFor("sql");
     const encoded = {
       ...generated,
       schema: JSON.stringify(generated.schema),
@@ -100,12 +125,36 @@ describe("adaptive AI endpoints", () => {
     vi.stubGlobal("fetch", vi.fn(async () => providerResponse({ verdict: "correct", score: 95, doneWell: ["Correct predicate"], improvements: [], mistakeClassification: "none", explanation: "The query filters invalid rows.", suggestedNextAction: "Try null validity flags." })));
     const { sealQuestion } = await import("@/lib/adaptive/server/secure-token");
     const { POST } = await import("@/app/api/tutor/evaluate/route");
-    const sealedQuestion = { ...generated, technology: "sql" as const, runtime: { setupSql: generated.runtime.setupSql } } as GeneratedQuestion;
+    const generated = generatedFor("sql");
+    const sealedQuestion = { ...generated, runtime: { setupSql: generated.runtime?.setupSql } } as GeneratedQuestion;
     const response = await POST(new Request("http://localhost/api/tutor/evaluate", { method: "POST", body: JSON.stringify({ evaluationToken: sealQuestion(sealedQuestion), code: "SELECT id FROM orders WHERE valid = 1" }) }));
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.verdict).toBe("correct");
     expect(body.hiddenTestsPassed).toBe(true);
     expect(body.runtimePassed).toBe(true);
+  });
+
+  it("regenerates when the model returns a scheduler-ineligible question", async () => {
+    const valid = generatedFor("sql");
+    const invalid = { ...valid, curriculumNodeId: "sql-offset-functions-lag", subtopic: "LAG" };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(providerResponse(invalid))
+      .mockResolvedValueOnce(providerResponse(valid));
+    vi.stubGlobal("fetch", fetchMock);
+    const { POST } = await import("@/app/api/tutor/generate/route");
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: emptyProgress() }) }));
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect((await response.json()).question.curriculumNodeId).toBe("sql-foundations-select");
+  });
+
+  it("fails safely after repeated ineligible model output", async () => {
+    const invalid = { ...generatedFor("sql"), curriculumNodeId: "sql-offset-functions-lag", subtopic: "LAG" };
+    vi.stubGlobal("fetch", vi.fn(async () => providerResponse(invalid)));
+    const { POST } = await import("@/app/api/tutor/generate/route");
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: emptyProgress() }) }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("INELIGIBLE_GENERATION");
   });
 });

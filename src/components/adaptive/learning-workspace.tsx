@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, Lightbulb, Loader2, Play, Send, Sparkles } from "lucide-react";
+import { completeDiagnosticNode, diagnosticComplete, needsDiagnosticWelcome, startDiagnostic } from "@/lib/adaptive/diagnostic";
 import { applyOutcome } from "@/lib/adaptive/progress";
-import type { EvaluationResult, LearnerQuestion, ScheduleReason, Technology } from "@/lib/adaptive/types";
+import type { DifficultyPreference, EvaluationResult, LearnerQuestion, QuestionAdjustment, ScheduleReason, SchedulerOptions, Technology } from "@/lib/adaptive/types";
 import { useAdaptiveProgress } from "@/hooks/use-adaptive-progress";
 import { Button } from "@/components/ui/button";
 
@@ -11,7 +12,7 @@ type QuestionResponse = { question: LearnerQuestion; evaluationToken: string; sc
 type SessionCache = { current?: QuestionResponse; next?: QuestionResponse; savedAt?: number };
 
 const QUESTION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const sessionCacheKey = (technology: Technology) => `mastery:tutor-cache:v2:${technology}`;
+const sessionCacheKey = (technology: Technology) => `mastery:tutor-cache:v3:${technology}`;
 
 function isQuestionResponse(value: unknown): value is QuestionResponse {
   if (!value || typeof value !== "object") return false;
@@ -35,6 +36,11 @@ function readSessionCache(technology: Technology): SessionCache {
 function writeSessionCache(technology: Technology, value: SessionCache) {
   if (typeof window === "undefined") return;
   try { window.localStorage.setItem(sessionCacheKey(technology), JSON.stringify({ ...value, savedAt: Date.now() })); } catch { /* Continue without a cache when storage is unavailable. */ }
+}
+
+function clearSessionCache(technology: Technology) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(sessionCacheKey(technology)); } catch { /* Continue when storage is unavailable. */ }
 }
 
 const labels: Record<Technology, { name: string; accent: string; description: string }> = {
@@ -69,13 +75,13 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
   const prefetchPromise = useRef<Promise<QuestionResponse> | null>(null);
   const meta = labels[technology];
 
-  const nextQuestion = useCallback(async () => {
+  const nextQuestion = useCallback(async (progressOverride = progress, selection?: SchedulerOptions, useCache = true) => {
     if (!ready) return;
     setBusy("generate"); setError(""); setRuntime(null); setEvaluation(null); setTeacherMessage(""); setUsedHint(false);
     try {
-      const cache = readSessionCache(technology);
-      const pending = prefetchPromise.current;
-      const result = cache.next ?? (pending ? await pending : await postJson<QuestionResponse>("/api/tutor/generate", { technology, progress }));
+      const cache = useCache ? readSessionCache(technology) : {};
+      const pending = useCache ? prefetchPromise.current : null;
+      const result = cache.next ?? (pending ? await pending : await postJson<QuestionResponse>("/api/tutor/generate", { technology, progress: progressOverride, selection }));
       prefetchRequestId.current += 1;
       prefetchPromise.current = null;
       prefetchKey.current = "";
@@ -90,6 +96,11 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
     if (!ready || initializationStarted.current) return;
     initializationStarted.current = true;
     const timer = window.setTimeout(() => {
+      if (needsDiagnosticWelcome(progress, technology)) {
+        clearSessionCache(technology);
+        setInitialized(true);
+        return;
+      }
       const cached = readSessionCache(technology);
       if (cached.current) {
         setSession(cached.current);
@@ -102,7 +113,7 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
       void nextQuestion();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [nextQuestion, ready, technology]);
+  }, [nextQuestion, progress, ready, technology]);
 
   useEffect(() => {
     if (!ready || !session) return;
@@ -113,7 +124,8 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
     prefetchKey.current = requestKey;
     const requestId = ++prefetchRequestId.current;
     const recentFingerprints = [...progress.recentFingerprints, session.question.fingerprint].slice(-60);
-    const promise = postJson<QuestionResponse>("/api/tutor/generate", { technology, progress: { ...progress, recentFingerprints } });
+    const schedulingProgress = session.question.diagnosticQuestion ? completeDiagnosticNode(progress, technology, session.question.curriculumNodeId) : progress;
+    const promise = postJson<QuestionResponse>("/api/tutor/generate", { technology, progress: { ...schedulingProgress, recentFingerprints } });
     prefetchPromise.current = promise;
     void promise.then((result) => {
       if (prefetchRequestId.current !== requestId) return;
@@ -141,15 +153,17 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
     try {
       const result = await postJson<EvaluationResult>("/api/tutor/evaluate", { evaluationToken: session.evaluationToken, code });
       setEvaluation(result);
-      const updatedProgress = applyOutcome(progress, { technology, curriculumNodeId: session.question.curriculumNodeId, dimensions: session.question.skillDimensions, evaluation: result, usedHint, review: session.scheduleReason === "review", interview: session.scheduleReason === "interview", fingerprint: session.question.fingerprint });
+      const updatedProgress = applyOutcome(progress, { technology, curriculumNodeId: session.question.curriculumNodeId, dimensions: session.question.skillDimensions, evaluation: result, usedHint, review: session.scheduleReason === "review", interview: session.scheduleReason === "interview", diagnosticQuestion: session.question.diagnosticQuestion, fingerprint: session.question.fingerprint });
       setProgress(updatedProgress);
-      prefetchRequestId.current += 1;
-      prefetchPromise.current = null;
-      prefetchKey.current = "";
-      const cache = readSessionCache(technology);
-      writeSessionCache(technology, { current: cache.current ?? session });
-      setNextReady(false);
-      setPrefetchRevision((value) => value + 1);
+      if (!session.question.diagnosticQuestion || diagnosticComplete(updatedProgress, technology)) {
+        prefetchRequestId.current += 1;
+        prefetchPromise.current = null;
+        prefetchKey.current = "";
+        const cache = readSessionCache(technology);
+        writeSessionCache(technology, { current: cache.current ?? session });
+        setNextReady(false);
+        setPrefetchRevision((value) => value + 1);
+      }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Submission failed."); }
     finally { setBusy(null); }
   };
@@ -164,8 +178,42 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
 
   const schemaText = useMemo(() => session?.question.schema ? JSON.stringify(session.question.schema, null, 2) : "No input schema is required.", [session]);
 
+  const startSkillCheck = () => {
+    const updated = startDiagnostic(progress, technology);
+    setProgress(updated);
+    clearSessionCache(technology);
+    void nextQuestion(updated, undefined, false);
+  };
+
+  const setDifficultyPreference = (preference: DifficultyPreference) => {
+    const updated = structuredClone(progress);
+    updated.difficultyPreference[technology] = preference;
+    setProgress(updated);
+    prefetchRequestId.current += 1;
+    prefetchPromise.current = null;
+    prefetchKey.current = "";
+    const cache = readSessionCache(technology);
+    writeSessionCache(technology, { ...(cache.current ? { current: cache.current } : {}) });
+    setNextReady(false);
+    setPrefetchRevision((value) => value + 1);
+  };
+
+  const adjustQuestion = (adjustment: QuestionAdjustment) => {
+    if (!session) return;
+    const updated = structuredClone(progress);
+    if (adjustment === "easier") updated.remediation[technology] = { curriculumNodeId: session.question.curriculumNodeId, difficulty: session.question.difficulty };
+    prefetchRequestId.current += 1;
+    prefetchPromise.current = null;
+    prefetchKey.current = "";
+    clearSessionCache(technology);
+    setNextReady(false);
+    if (adjustment === "easier") setProgress(updated);
+    void nextQuestion(updated, { adjustment, currentNodeId: session.question.curriculumNodeId, currentDifficulty: session.question.difficulty }, false);
+  };
+
   if (!ready || !initialized || busy === "generate") return <LoadingState label={`Preparing your next ${meta.name} question…`} />;
-  if (!session) return <ConfigurationState error={error} retry={nextQuestion} />;
+  if (!session && needsDiagnosticWelcome(progress, technology)) return <WelcomeState technology={meta.name} start={startSkillCheck} />;
+  if (!session) return <ConfigurationState error={error} retry={() => void nextQuestion()} />;
   const question = session.question;
 
   return (
@@ -178,15 +226,15 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
               <span className="text-sm font-semibold text-slate-800">Problem</span>
               <span className="text-xs text-slate-400">{meta.name}</span>
             </div>
-            <Tag>Difficulty {question.difficulty}/5</Tag>
+            <div className="flex items-center gap-2"><select aria-label="Difficulty preference" value={progress.difficultyPreference[technology]} onChange={(event) => setDifficultyPreference(event.target.value as DifficultyPreference)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-600 outline-none"><option value="recommended">Recommended</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select><Tag>Difficulty {question.difficulty}/5</Tag></div>
           </div>
           <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-7 lg:overscroll-contain">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{question.title}</h1>
               <p className="mt-2 text-xs text-slate-500">{meta.description}</p>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-600"><Tag>{question.topic}</Tag><Tag>{question.subtopic}</Tag></div>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-600"><Tag>{question.topic}</Tag><Tag>{question.subtopic}</Tag>{question.diagnosticQuestion ? <Tag>Diagnostic</Tag> : null}<Tag>Exercise type: {exerciseModeLabel(question.exerciseMode)}</Tag></div>
             </div>
-            <div><p className="eyebrow">Description</p><p className="mt-3 text-[15px] leading-7 text-slate-700">{question.prompt}</p></div>
+            <div><p className="eyebrow">Description</p><p className="mt-3 text-[15px] leading-7 text-slate-700">{question.prompt}</p><p className="mt-3 rounded-xl bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">{question.learnerInstructions}</p></div>
             <InfoBlock title="Input schema" content={schemaText} />
             {question.sampleData ? <InfoBlock title="Example" content={JSON.stringify(question.sampleData, null, 2)} /> : null}
             <div><p className="eyebrow">Expected output</p><ul className="mt-3 space-y-2.5">{question.expectedBehavior.map((rule) => <li key={rule} className="flex gap-2.5 text-sm leading-6 text-slate-600"><CheckCircle2 className="mt-1 size-4 shrink-0 text-emerald-500" />{rule}</li>)}</ul></div>
@@ -201,7 +249,9 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
             <Button onClick={submit} disabled={!!busy} className="bg-emerald-600 text-white hover:bg-emerald-500"><Send className="size-4" />Submit</Button>
             <Button onClick={() => assist("hint")} disabled={!!busy} variant="outline" className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white"><Lightbulb className="size-4" />Hint</Button>
             <Button onClick={() => assist("explain")} disabled={!!busy} variant="outline" className="border-white/15 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white"><Sparkles className="size-4" />Explain</Button>
-            <Button onClick={nextQuestion} disabled={!!busy} variant="ghost" className="ml-auto text-slate-300 hover:bg-white/10 hover:text-white">Next<ArrowRight className="size-4" /></Button>
+            <Button onClick={() => adjustQuestion("easier")} disabled={!!busy} variant="ghost" className="text-slate-400 hover:bg-white/10 hover:text-white">Too difficult</Button>
+            <Button onClick={() => adjustQuestion("harder")} disabled={!!busy} variant="ghost" className="text-slate-400 hover:bg-white/10 hover:text-white">Too easy</Button>
+            <Button onClick={() => void nextQuestion()} disabled={!!busy || question.diagnosticQuestion && !evaluation} variant="ghost" className="ml-auto text-slate-300 hover:bg-white/10 hover:text-white">Next<ArrowRight className="size-4" /></Button>
           </div>
           <WorkspaceResults busy={busy} error={error} runtime={runtime} teacherMessage={teacherMessage} evaluation={evaluation} />
         </section>
@@ -213,7 +263,9 @@ export function LearningWorkspace({ technology }: { technology: Technology }) {
 function Tag({ children }: { children: React.ReactNode }) { return <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">{children}</span>; }
 function InfoBlock({ title, content }: { title: string; content: string }) { return <div><p className="eyebrow">{title}</p><pre className="mt-3 max-h-52 overflow-auto rounded-2xl bg-slate-50 p-4 font-mono text-xs leading-5 text-slate-600">{content}</pre></div>; }
 function LoadingState({ label }: { label: string }) { return <div className="grid min-h-[55vh] place-items-center"><div className="text-center"><Loader2 className="mx-auto size-6 animate-spin text-blue-600" /><p className="mt-4 text-sm text-slate-500">{label}</p></div></div>; }
+function WelcomeState({ technology, start }: { technology: string; start: () => void }) { return <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"><p className="eyebrow">{technology} Practice</p><h1 className="mt-3 text-2xl font-semibold text-slate-950">Let’s find the right starting point.</h1><p className="mt-3 text-sm leading-6 text-slate-600">We’ll begin with a short skill check and adjust the questions based on your answers.</p><div className="mt-6 grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 sm:grid-cols-2"><p><span className="block text-xs uppercase tracking-wide text-slate-400">Current stage</span><strong className="mt-1 block text-slate-900">Diagnostic</strong></p><p><span className="block text-xs uppercase tracking-wide text-slate-400">Starting difficulty</span><strong className="mt-1 block text-slate-900">Beginner</strong></p></div><Button onClick={start} className="mt-6">Start Skill Check<ArrowRight className="size-4" /></Button></div>; }
 function ConfigurationState({ error, retry }: { error: string; retry: () => void }) { return <div className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center"><AlertCircle className="mx-auto size-7 text-amber-600" /><h1 className="mt-4 text-xl font-semibold text-slate-950">AI teacher configuration required</h1><p className="mt-2 text-sm leading-6 text-slate-600">{error || "The AI teacher is unavailable."}</p><Button onClick={retry} className="mt-5">Try again</Button></div>; }
+function exerciseModeLabel(mode: LearnerQuestion["exerciseMode"]) { return mode === "code_completion" ? "Complete the query" : mode === "debugging" ? "Fix the query" : mode === "optimization" ? "Optimize" : mode === "explanation" ? "Explain" : "Write from scratch"; }
 
 function WorkspaceResults({ busy, error, runtime, teacherMessage, evaluation }: { busy: string | null; error: string; runtime: { passed: boolean; mode: string; summary: string } | null; teacherMessage: string; evaluation: EvaluationResult | null }) {
   const hasContent = busy || error || runtime || teacherMessage || evaluation;

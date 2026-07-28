@@ -2,12 +2,13 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { curriculumById } from "@/lib/adaptive/curriculum";
-import { isDuplicateFingerprint } from "@/lib/adaptive/progress";
+import { isDuplicateFingerprint, parseProgress } from "@/lib/adaptive/progress";
 import { scheduleTarget } from "@/lib/adaptive/scheduler";
+import { validateQuestionEligibility } from "@/lib/adaptive/server/eligibility";
 import { arcadePrompt, assistancePrompt, evaluationPrompt, generationPrompt } from "@/lib/adaptive/server/prompts";
 import { assistanceSchema, evaluationSchema, questionSchema, requestStructuredJson } from "@/lib/adaptive/server/openai";
 import { isEvaluationContent, isGeneratedQuestion } from "@/lib/adaptive/server/validation";
-import type { EvaluationResult, GeneratedQuestion, LearnerQuestion, ProgressState, Technology } from "@/lib/adaptive/types";
+import type { EvaluationResult, GeneratedQuestion, LearnerQuestion, ProgressState, SchedulerOptions, Technology } from "@/lib/adaptive/types";
 
 function decodeJson(value: unknown) {
   if (typeof value !== "string") return value;
@@ -46,25 +47,17 @@ export function learnerQuestion(question: GeneratedQuestion): LearnerQuestion {
   return safe;
 }
 
-export async function generateQuestion(technology: Technology, progress: ProgressState) {
-  const target = scheduleTarget(technology, progress);
+export async function generateQuestion(technology: Technology, progress: ProgressState, options: SchedulerOptions = {}) {
+  const target = scheduleTarget(technology, progress, undefined, undefined, options);
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const raw = await requestStructuredJson<unknown>("adaptive_question", generationPrompt(technology, target, progress), questionSchema);
     if (!isGeneratedQuestion(raw)) throw new Error("INVALID_LLM_JSON");
-    const question = cleanQuestion({
-      ...raw,
-      id: randomUUID(),
-      technology,
-      curriculumNodeId: target.node.id,
-      topic: target.node.topic,
-      subtopic: target.node.subtopic,
-      difficulty: target.difficulty,
-      skillDimensions: target.targetDimensions,
-      fingerprint: { ...raw.fingerprint, technology, topic: target.node.topic, subtopic: target.node.subtopic, difficulty: target.difficulty, skills: target.targetDimensions },
-    });
-    if (!isDuplicateFingerprint(question.fingerprint, progress.recentFingerprints)) return { question, reason: target.reason };
+    const candidate = cleanQuestion(raw);
+    const eligibility = validateQuestionEligibility(candidate, progress, target.node, target);
+    if (!eligibility.eligible) continue;
+    return { question: { ...candidate, id: randomUUID() }, reason: target.reason };
   }
-  throw new Error("DUPLICATE_GENERATION");
+  throw new Error("INELIGIBLE_GENERATION");
 }
 
 export async function generateArcadeQuestion(progress: ProgressState) {
@@ -97,8 +90,9 @@ export async function teacherAssistance(input: { kind: "hint" | "explain"; quest
 
 export function validateProgressPayload(value: unknown): ProgressState {
   if (!value || typeof value !== "object") throw new Error("INVALID_PROGRESS");
-  const progress = value as ProgressState;
-  if (progress.version !== 1 || !progress.solved || !progress.skills || !Array.isArray(progress.recentFingerprints)) throw new Error("INVALID_PROGRESS");
+  const candidate = value as Partial<ProgressState> & { version?: unknown; progressVersion?: unknown };
+  if (![1, 2].includes(Number(candidate.progressVersion ?? candidate.version)) || !candidate.solved || !candidate.skills || !Array.isArray(candidate.recentFingerprints)) throw new Error("INVALID_PROGRESS");
+  const progress = parseProgress(JSON.stringify(value));
   if (Object.keys(progress.skills).length > curriculumById.size || progress.recentFingerprints.length > 60) throw new Error("INVALID_PROGRESS");
   return progress;
 }
