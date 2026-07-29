@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { curriculumById } from "@/lib/adaptive/curriculum";
+import { DIAGNOSTIC_NODE_IDS } from "@/lib/adaptive/diagnostic";
 import { emptyProgress } from "@/lib/adaptive/progress";
-import type { GeneratedQuestion, Technology } from "@/lib/adaptive/types";
+import type { GeneratedQuestion, ProgressState, Technology } from "@/lib/adaptive/types";
 
 vi.mock("server-only", () => ({}));
 
@@ -11,7 +12,7 @@ const diagnosticNodes: Record<Technology, string> = {
   pyspark: "pyspark-dataframe-creation-lists",
 };
 
-function generatedFor(technology: Technology): GeneratedQuestion {
+function generatedFor(technology: Technology, diagnosticQuestion = true): GeneratedQuestion {
   const node = curriculumById.get(diagnosticNodes[technology])!;
   const starterCode = technology === "sql"
     ? "-- Write your query here"
@@ -32,7 +33,7 @@ function generatedFor(technology: Technology): GeneratedQuestion {
     difficulty: 1,
     exerciseMode: "write_from_scratch",
     prerequisiteIds: [...node.prerequisites],
-    diagnosticQuestion: true,
+    diagnosticQuestion,
     learnerInstructions: "Write the complete solution from scratch.",
     title: "Starter diagnostic",
     scenario: "Order operations",
@@ -48,6 +49,12 @@ function generatedFor(technology: Technology): GeneratedQuestion {
     fingerprint: { technology, topic: node.topic, subtopic: node.subtopic, pattern: "starter diagnostic", scenario: "Order operations", difficulty: 1, skills: [...node.skillDimensions], schemaSignature: "orders(id,valid)" },
     runtime: { setupSql: "CREATE TABLE orders(id INTEGER, valid INTEGER); INSERT INTO orders VALUES (1,1),(2,0);", functionName: technology === "python" ? "summarize_batch" : undefined, visibleTests: undefined, pysparkQuestionId: undefined },
   };
+}
+
+function afterDiagnostic(technology: Technology): ProgressState {
+  const progress = emptyProgress();
+  progress.diagnostics[technology] = { started: true, shortened: false, completedNodeIds: [...DIAGNOSTIC_NODE_IDS[technology]] };
+  return progress;
 }
 
 function providerResponse(value: unknown) {
@@ -67,7 +74,8 @@ describe("adaptive AI endpoints", () => {
   });
 
   it.each(["sql", "python", "pyspark"])("generates a protected %s question", async (technology) => {
-    vi.stubGlobal("fetch", vi.fn(async () => providerResponse(generatedFor(technology as Technology))));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
     const { POST } = await import("@/app/api/tutor/generate/route");
     const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology, progress: emptyProgress() }) }));
     const body = await response.json();
@@ -76,6 +84,22 @@ describe("adaptive AI endpoints", () => {
     expect(body.question.referenceSolution).toBeUndefined();
     expect(body.question.hiddenTests).toBeUndefined();
     expect(body.evaluationToken).toMatch(/^[^.]+\.[^.]+\.[^.]+$/u);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("serves same-node diagnostic difficulty adjustments from the bank", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const progress = emptyProgress();
+    progress.diagnostics.sql.started = true;
+    const { POST } = await import("@/app/api/tutor/generate/route");
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress, selection: { adjustment: "harder", currentNodeId: "sql-foundations-select", currentDifficulty: 1 } }) }));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.question.curriculumNodeId).toBe("sql-foundations-select");
+    expect(body.question.difficulty).toBe(2);
+    expect(body.question.learnerInstructions).toContain("Slightly harder variation");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns a clear missing-key response without calling a provider", async () => {
@@ -83,7 +107,7 @@ describe("adaptive AI endpoints", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const { POST } = await import("@/app/api/tutor/generate/route");
-    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: emptyProgress() }) }));
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: afterDiagnostic("sql") }) }));
     expect(response.status).toBe(503);
     expect((await response.json()).code).toBe("OPENAI_NOT_CONFIGURED");
     expect(fetchMock).not.toHaveBeenCalled();
@@ -92,7 +116,7 @@ describe("adaptive AI endpoints", () => {
   it("rejects malformed model JSON", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => providerResponse({ title: "incomplete" })));
     const { POST } = await import("@/app/api/tutor/generate/route");
-    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: emptyProgress() }) }));
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: afterDiagnostic("sql") }) }));
     expect(response.status).toBe(422);
     expect((await response.json()).code).toBe("INVALID_RESPONSE");
   });
@@ -103,7 +127,7 @@ describe("adaptive AI endpoints", () => {
     expect(properties.schema.type).toBe("string");
     expect(properties.sampleData.type).toBe("string");
 
-    const generated = generatedFor("sql");
+    const generated = generatedFor("sql", false);
     const encoded = {
       ...generated,
       schema: JSON.stringify(generated.schema),
@@ -112,7 +136,7 @@ describe("adaptive AI endpoints", () => {
     };
     vi.stubGlobal("fetch", vi.fn(async () => providerResponse(encoded)));
     const { POST } = await import("@/app/api/tutor/generate/route");
-    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: emptyProgress() }) }));
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: afterDiagnostic("sql") }) }));
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.question.schema).toEqual(generated.schema);
@@ -136,24 +160,24 @@ describe("adaptive AI endpoints", () => {
   });
 
   it("regenerates when the model returns a scheduler-ineligible question", async () => {
-    const valid = generatedFor("sql");
+    const valid = generatedFor("sql", false);
     const invalid = { ...valid, curriculumNodeId: "sql-offset-functions-lag", subtopic: "LAG" };
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(providerResponse(invalid))
       .mockResolvedValueOnce(providerResponse(valid));
     vi.stubGlobal("fetch", fetchMock);
     const { POST } = await import("@/app/api/tutor/generate/route");
-    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: emptyProgress() }) }));
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: afterDiagnostic("sql") }) }));
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect((await response.json()).question.curriculumNodeId).toBe("sql-foundations-select");
   });
 
   it("fails safely after repeated ineligible model output", async () => {
-    const invalid = { ...generatedFor("sql"), curriculumNodeId: "sql-offset-functions-lag", subtopic: "LAG" };
+    const invalid = { ...generatedFor("sql", false), curriculumNodeId: "sql-offset-functions-lag", subtopic: "LAG" };
     vi.stubGlobal("fetch", vi.fn(async () => providerResponse(invalid)));
     const { POST } = await import("@/app/api/tutor/generate/route");
-    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: emptyProgress() }) }));
+    const response = await POST(new Request("http://localhost/api/tutor/generate", { method: "POST", body: JSON.stringify({ technology: "sql", progress: afterDiagnostic("sql") }) }));
     expect(response.status).toBe(409);
     expect((await response.json()).code).toBe("INELIGIBLE_GENERATION");
   });

@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     if (error instanceof AiProviderError) return Response.json({ error: error.message, code: "OPENAI_PROVIDER_ERROR" }, { status: error.status, headers });
     if (error instanceof Error && error.message === "DUPLICATE_GENERATION") return Response.json({ error: "The AI repeated a recent exercise. Please try Next Question again.", code: "DUPLICATE_GENERATION" }, { status: 409, headers });
     if (error instanceof Error && error.message === "INELIGIBLE_GENERATION") return Response.json({ error: "The AI could not produce a safe question for the selected skill. Try again shortly.", code: "INELIGIBLE_GENERATION" }, { status: 409, headers });
+    if (error instanceof Error && error.message === "DIAGNOSTIC_BANK_EXHAUSTED") return Response.json({ error: "You have completed every available diagnostic variation for this skill.", code: "DIAGNOSTIC_BANK_EXHAUSTED" }, { status: 409, headers });
     return Response.json({ error: "Question generation failed safely.", code: "GENERATION_FAILED" }, { status: 500, headers });
   }
 }

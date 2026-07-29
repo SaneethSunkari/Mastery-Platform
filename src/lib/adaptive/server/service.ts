@@ -5,6 +5,7 @@ import { curriculumById } from "@/lib/adaptive/curriculum";
 import { isDuplicateFingerprint, parseProgress } from "@/lib/adaptive/progress";
 import { scheduleTarget } from "@/lib/adaptive/scheduler";
 import { validateQuestionEligibility } from "@/lib/adaptive/server/eligibility";
+import { diagnosticQuestionBank } from "@/lib/adaptive/server/diagnostic-question-bank";
 import { arcadePrompt, assistancePrompt, evaluationPrompt, generationPrompt } from "@/lib/adaptive/server/prompts";
 import { assistanceSchema, evaluationSchema, questionSchema, requestStructuredJson } from "@/lib/adaptive/server/openai";
 import { isEvaluationContent, isGeneratedQuestion } from "@/lib/adaptive/server/validation";
@@ -49,10 +50,40 @@ export function learnerQuestion(question: GeneratedQuestion): LearnerQuestion {
 
 export async function generateQuestion(technology: Technology, progress: ProgressState, options: SchedulerOptions = {}) {
   const target = scheduleTarget(technology, progress, undefined, undefined, options);
+  if (target.diagnosticQuestion) {
+    const bank = diagnosticQuestionBank.get(target.node.id) ?? [];
+    const startIndex = (progress.recentFingerprints.length + (options.adjustment ? 1 : 0)) % Math.max(1, bank.length);
+    for (let offset = 0; offset < bank.length; offset += 1) {
+      const stored = bank[(startIndex + offset) % bank.length]!;
+      const candidate = {
+        ...stored,
+        difficulty: target.difficulty,
+        learnerInstructions: options.adjustment === "easier"
+          ? `Scaffolded variation: focus on the single selected competency. ${stored.learnerInstructions}`
+          : options.adjustment === "harder"
+            ? `Slightly harder variation: pay close attention to the supplied edge cases. ${stored.learnerInstructions}`
+            : stored.learnerInstructions,
+        fingerprint: { ...stored.fingerprint, difficulty: target.difficulty },
+      };
+      const eligibility = validateQuestionEligibility(candidate, progress, target.node, target);
+      if (eligibility.eligible) return { question: { ...candidate, id: randomUUID() }, reason: target.reason };
+    }
+    throw new Error("DIAGNOSTIC_BANK_EXHAUSTED");
+  }
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const raw = await requestStructuredJson<unknown>("adaptive_question", generationPrompt(technology, target, progress), questionSchema);
     if (!isGeneratedQuestion(raw)) throw new Error("INVALID_LLM_JSON");
-    const candidate = cleanQuestion(raw);
+    const cleaned = cleanQuestion(raw);
+    const candidate = {
+      ...cleaned,
+      fingerprint: {
+        ...cleaned.fingerprint,
+        technology: target.node.technology,
+        topic: target.node.topic,
+        subtopic: target.node.subtopic,
+        difficulty: cleaned.difficulty,
+      },
+    };
     const eligibility = validateQuestionEligibility(candidate, progress, target.node, target);
     if (!eligibility.eligible) continue;
     return { question: { ...candidate, id: randomUUID() }, reason: target.reason };

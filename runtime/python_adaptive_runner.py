@@ -3,10 +3,21 @@ import json
 import resource
 import sys
 
-resource.setrlimit(resource.RLIMIT_CPU, (3, 3))
-resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
-resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))
-resource.setrlimit(resource.RLIMIT_NPROC, (1, 1))
+def set_soft_limit(limit, value):
+    _, hard_limit = resource.getrlimit(limit)
+    try:
+        resource.setrlimit(limit, (min(value, hard_limit), hard_limit))
+    except ValueError:
+        # macOS can report virtual memory above a lower requested RLIMIT_AS.
+        # The isolated child still keeps the platform limit in that case.
+        if sys.platform != "darwin" or limit != resource.RLIMIT_AS:
+            raise
+
+
+set_soft_limit(resource.RLIMIT_CPU, 3)
+set_soft_limit(resource.RLIMIT_AS, 256 * 1024 * 1024)
+set_soft_limit(resource.RLIMIT_FSIZE, 0)
+set_soft_limit(resource.RLIMIT_NPROC, 1)
 
 request = json.loads(sys.stdin.read())
 source = request["source"]
