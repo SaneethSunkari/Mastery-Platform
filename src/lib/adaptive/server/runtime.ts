@@ -20,8 +20,14 @@ async function runSql(question: GeneratedQuestion, source: string): Promise<Runt
     const expected = database.exec(question.referenceSolution)[0];
     database.close();
     const normalize = (result: typeof actual) => ({ columns: result?.columns.map((item) => item.toLowerCase()) ?? [], rows: (result?.values ?? []).map((row) => row.map((value) => value === null ? null : typeof value === "number" ? Number(value.toFixed(8)) : String(value))).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) });
-    const passed = JSON.stringify(normalize(actual)) === JSON.stringify(normalize(expected));
-    return { passed, validatorPassed: passed, runtimePassed: passed, mode: "real-runtime", summary: passed ? `SQL executed successfully and matched ${expected?.values.length ?? 0} expected row(s), including hidden fixture cases.` : "SQL executed, but its columns or rows did not match the hidden expected result.", details: { columns: actual?.columns ?? [], rowCount: actual?.values.length ?? 0 } };
+    const normalizedActual = normalize(actual);
+    const normalizedExpected = normalize(expected);
+    const passed = JSON.stringify(normalizedActual) === JSON.stringify(normalizedExpected);
+    const columnsMatch = JSON.stringify(normalizedActual.columns) === JSON.stringify(normalizedExpected.columns);
+    const failureSummary = !columnsMatch
+      ? `SQL executed, but the output columns did not match. Expected ${normalizedExpected.columns.join(", ") || "no columns"}; received ${normalizedActual.columns.join(", ") || "no columns"}.`
+      : `SQL executed with the expected columns, but the rows did not match the hidden expected result. Expected ${normalizedExpected.rows.length} row(s); received ${normalizedActual.rows.length}.`;
+    return { passed, validatorPassed: passed, runtimePassed: passed, mode: "real-runtime", summary: passed ? `SQL executed successfully and matched ${expected?.values.length ?? 0} expected row(s), including hidden fixture cases.` : failureSummary, details: { columns: actual?.columns ?? [], expectedColumns: expected?.columns ?? [], rowCount: actual?.values.length ?? 0, expectedRowCount: expected?.values.length ?? 0 } };
   } catch (error) {
     return { passed: false, validatorPassed: false, runtimePassed: false, mode: "real-runtime", summary: `SQL execution failed: ${error instanceof Error ? error.message : "unknown error"}` };
   }

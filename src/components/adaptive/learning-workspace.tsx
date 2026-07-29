@@ -12,7 +12,7 @@ type QuestionResponse = { question: LearnerQuestion; evaluationToken: string; sc
 type SessionCache = { current?: QuestionResponse; next?: QuestionResponse; savedAt?: number };
 
 const QUESTION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const sessionCacheKey = (technology: Technology) => `mastery:tutor-cache:v3:${technology}`;
+const sessionCacheKey = (technology: Technology) => `mastery:tutor-cache:v4:${technology}`;
 
 function isQuestionResponse(value: unknown): value is QuestionResponse {
   if (!value || typeof value !== "object") return false;

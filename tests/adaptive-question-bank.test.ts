@@ -53,4 +53,17 @@ describe("pre-generated diagnostic question bank", () => {
       }
     }
   });
+
+  it("states the ORDER BY projection and explains column mismatches", async () => {
+    const { diagnosticQuestionBank } = await import("@/lib/adaptive/server/diagnostic-question-bank");
+    const { executeAnswer } = await import("@/lib/adaptive/server/runtime");
+    const questions = diagnosticQuestionBank.get("sql-sorting-and-pagination-order-by")!;
+    for (const question of questions) expect(question.prompt).toContain("Return only record_id and amount");
+    const question = questions.find((item) => item.prompt.includes("3 rows"))!;
+    const table = Object.keys(question.schema as Record<string, unknown>)[0]!;
+    const result = await executeAnswer(question, `SELECT * FROM ${table} ORDER BY amount DESC, record_id ASC LIMIT 3`);
+    expect(result.passed).toBe(false);
+    expect(result.summary).toContain("Expected record_id, amount");
+    expect(result.summary).toContain("received record_id, label, amount");
+  });
 });
